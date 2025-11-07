@@ -1,0 +1,171 @@
+# ==============================================================
+# 👥 K-Nearest Neighbors (KNN) on Social Network Ads Dataset
+# ==============================================================
+
+# Step 1️⃣: Import Required Libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, classification_report
+
+# ==============================================================
+# Step 2️⃣: Load Dataset
+# ==============================================================
+df = pd.read_csv("Social_Network_Ads.csv")   # Make sure file is uploaded in the same directory
+print("✅ Dataset Loaded Successfully!\n")
+display(df.head())
+
+# Check basic info
+print("\n📊 Dataset Information:")
+print(df.info())
+
+# ==============================================================
+# Step 3️⃣: Data Preprocessing
+# ==============================================================
+# Drop irrelevant columns if present (like 'User ID')
+if 'User ID' in df.columns:
+    df = df.drop(['User ID'], axis=1)
+
+# Convert categorical 'Gender' into numeric form
+if 'Gender' in df.columns:
+    df['Gender'] = df['Gender'].map({'Male': 1, 'Female': 0})
+
+# Define independent (X) and dependent (y) variables
+X = df[['Age', 'EstimatedSalary']]   # commonly used features for this dataset
+y = df['Purchased']                  # target variable (0 = Not Purchased, 1 = Purchased)
+
+# ==============================================================
+# Step 4️⃣: Split Data into Train and Test Sets
+# ==============================================================
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+print(f"Training samples: {len(X_train)}, Testing samples: {len(X_test)}")
+
+# ==============================================================
+# Step 5️⃣: Feature Scaling
+# ==============================================================
+# KNN uses distance between points — so scale features for equal weightage
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+print("\n✅ Features Scaled using StandardScaler")
+
+# ==============================================================
+# Step 6️⃣: Train KNN Model
+# ==============================================================
+# Initialize model with K = 5 (can tune later)
+knn = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)  # p=2 → Euclidean Distance
+knn.fit(X_train, y_train)
+
+print("\n✅ KNN Model Trained Successfully!")
+
+# ==============================================================
+# Step 7️⃣: Predict Test Results
+# ==============================================================
+y_pred = knn.predict(X_test)
+
+# ==============================================================
+# Step 8️⃣: Evaluate Model
+# ==============================================================
+cm = confusion_matrix(y_test, y_pred)
+acc = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+error_rate = 1 - acc
+
+print("\n🎯 Model Performance Metrics:")
+print(f"Accuracy      : {acc*100:.2f}%")
+print(f"Error Rate    : {error_rate*100:.2f}%")
+print(f"Precision     : {precision*100:.2f}%")
+print(f"Recall        : {recall*100:.2f}%")
+
+# Detailed classification report
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# ==============================================================
+# Step 9️⃣: Visualize Confusion Matrix
+# ==============================================================
+plt.figure(figsize=(5,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Purples',
+            xticklabels=['Not Purchased (0)','Purchased (1)'],
+            yticklabels=['Not Purchased (0)','Purchased (1)'])
+plt.title("Confusion Matrix - KNN Classifier")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# ==============================================================
+# Step 🔟: Visualize Decision Boundary (Optional)
+# ==============================================================
+# Visualize how KNN separates the classes
+from matplotlib.colors import ListedColormap
+
+X_set, y_set = X_test, y_test
+X1, X2 = np.meshgrid(
+    np.arange(start=X_set[:, 0].min() - 1, stop=X_set[:, 0].max() + 1, step=0.01),
+    np.arange(start=X_set[:, 1].min() - 1, stop=X_set[:, 1].max() + 1, step=0.01)
+)
+
+plt.figure(figsize=(7,6))
+plt.contourf(X1, X2, knn.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
+             alpha=0.75, cmap=ListedColormap(('salmon', 'lightgreen')))
+
+plt.scatter(X_set[:, 0], X_set[:, 1], c=y_set, edgecolors='k', cmap=ListedColormap(('red', 'green')))
+plt.title("KNN Decision Boundary")
+plt.xlabel("Age (Scaled)")
+plt.ylabel("Estimated Salary (Scaled)")
+plt.show()
+
+
+
+
+#viva
+| **Question**                       | **Answer (say clearly)**                                                                                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What is KNN?                       | KNN stands for *K-Nearest Neighbors*. It’s a **supervised classification algorithm** that classifies a new sample based on the **majority class of its nearest K neighbors**. |
+| What type of learning is KNN?      | It’s a **lazy learning** algorithm — it doesn’t build a model during training, it stores all data and classifies at prediction time.                                          |
+| Is KNN supervised or unsupervised? | **Supervised**, because it requires labeled data for training.                                                                                                                |
+| What does “K” represent in KNN?    | The number of nearest neighbors considered for voting when classifying a new point.                                                                                           |
+| What happens if K = 1?             | The new point is classified based on its **single nearest neighbor** — can lead to overfitting.                                                                               |
+| What if K is too large?            | The model becomes too smooth and may **underfit**, misclassifying points.                                                                                                     |
+| What is the ideal K value?         | It depends on the dataset — typically chosen using **cross-validation** or by observing the **accuracy vs K plot**.                                                           |
+
+
+
+workin- 
+Choose K → let’s take K = 3
+
+Find distances of P from all points (using Euclidean distance):
+| From | Distance                        | Class |
+| ---- | ------------------------------- | ----- |
+| A    | √((3−1)² + (2−1)²) = √5 ≈ 2.24  | Red   |
+| B    | √((3−2)² + (2−2)²) = 1          | Red   |
+| C    | √((3−3)² + (2−3)²) = 1          | Blue  |
+| D    | √((3−6)² + (2−5)²) = √18 ≈ 4.24 | Blue  |
+Pick the 3 nearest neighbors → B (Red), C (Blue), A (Red)
+
+Vote / Majority class among neighbors → Red (2 votes), Blue (1 vote)
+
+✅ Predicted class of P = Red
+
+
+| **Question**                                   | **Answer**                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| What is meant by Lazy Learner?                 | KNN doesn’t learn a model; it memorizes data and performs computation during prediction.                           |
+| What is Non-parametric?                        | KNN doesn’t assume any distribution about data (e.g., linear, normal).                                             |
+| What’s the time complexity of KNN?             | O(n) per prediction because it compares with all training samples.                                                 |
+| What’s the space complexity?                   | O(n) — all training data must be stored in memory.                                                                 |
+| How is KNN different from Logistic Regression? | Logistic regression builds a mathematical model (parametric); KNN classifies by local similarity (non-parametric). |
+| Is KNN sensitive to outliers?                  | Yes — outliers can distort neighbor distances.                                                                     |
+| Why do we scale data?                          | Because distance-based algorithms can be biased toward features with larger numerical ranges.                      |
+
+
+What happens if you increase K?	Boundary becomes smoother (less sensitive to noise) but may misclassify edge points.
+What happens if you decrease K?	Boundary becomes more irregular — may overfit to training data.

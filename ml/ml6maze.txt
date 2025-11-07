@@ -1,0 +1,219 @@
+# ================================================================
+# 🧩 MAZE ENVIRONMENT — REINFORCEMENT LEARNING (Q-LEARNING)
+# ================================================================
+# Objective:
+# Implement a simple Q-learning algorithm where an agent learns to navigate
+# through a maze to reach a goal using trial and error and reward feedback.
+# ================================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import time
+
+# -----------------------------
+# Step 1: Create the Maze Environment
+# -----------------------------
+# Legend:
+# 0 = Free cell
+# 1 = Wall/Obstacle (blocked)
+# 2 = Goal (Target)
+
+maze = np.array([
+    [0, 1, 0, 0, 0],
+    [0, 1, 0, 1, 0],
+    [0, 0, 0, 1, 0],
+    [1, 1, 0, 1, 0],
+    [0, 0, 0, 0, 2]   # Goal = bottom-right cell
+])
+
+# Define start and goal states
+start = (0, 0)
+goal = (4, 4)
+
+n_rows, n_cols = maze.shape
+actions = ['up', 'down', 'left', 'right']  # Possible moves
+
+# 💡 VIVA QUESTIONS:
+# Q1. What is the environment in reinforcement learning?
+# A1. The environment is the world in which the agent interacts — here, the maze.
+# Q2. What are states and actions in RL?
+# A2. Each grid cell is a state; moving in any direction is an action.
+
+# -----------------------------
+# Step 2: Helper Functions
+# -----------------------------
+def get_next_state(state, action):
+    """Given the current state and chosen action, return the next state"""
+    row, col = state
+    if action == 'up':
+        row = max(row - 1, 0)
+    elif action == 'down':
+        row = min(row + 1, n_rows - 1)
+    elif action == 'left':
+        col = max(col - 1, 0)
+    elif action == 'right':
+        col = min(col + 1, n_cols - 1)
+    return (row, col)
+
+def get_reward(state):
+    """Assign reward based on the type of cell"""
+    if state == goal:
+        return 10    # Reward for reaching goal
+    elif maze[state] == 1:
+        return -5    # Penalty for hitting a wall
+    else:
+        return -1    # Small penalty to encourage faster routes
+
+def is_terminal(state):
+    """Check if the current state is terminal (goal reached)"""
+    return state == goal
+
+# 💡 VIVA QUESTIONS:
+# Q3. What is a reward in reinforcement learning?
+# A3. It’s a numerical feedback signal given to the agent after taking an action.
+# Q4. Why do we give small negative rewards (-1)?
+# A4. To encourage shorter paths (penalize unnecessary steps).
+
+# -----------------------------
+# Step 3: Initialize Q-table
+# -----------------------------
+# Each state (r,c) will have a dictionary of Q-values for all 4 actions.
+# Initially, all Q-values are set to 0.
+Q = {}
+for r in range(n_rows):
+    for c in range(n_cols):
+        Q[(r, c)] = {a: 0 for a in actions}
+
+# 💡 VIVA QUESTIONS:
+# Q5. What is a Q-table?
+# A5. It’s a lookup table where each entry stores a Q-value (expected reward)
+#     for taking a particular action from a particular state.
+
+# -----------------------------
+# Step 4: Define Hyperparameters
+# -----------------------------
+alpha = 0.1       # Learning rate (how much new info overrides old)
+gamma = 0.9       # Discount factor (importance of future rewards)
+epsilon = 0.2     # Exploration rate (chance to try random action)
+episodes = 300    # Number of training episodes
+
+# 💡 VIVA QUESTIONS:
+# Q6. What is the learning rate (α)?
+# A6. It controls how quickly the agent updates its knowledge — small α = slow learning.
+# Q7. What is the discount factor (γ)?
+# A7. It decides how much the agent values future rewards (closer to 1 = long-term focus).
+# Q8. What is epsilon in epsilon-greedy?
+# A8. It’s the probability of exploring new actions instead of exploiting known ones.
+
+# -----------------------------
+# Step 5: Q-Learning Algorithm
+# -----------------------------
+for ep in range(episodes):
+    state = start
+
+    while not is_terminal(state):
+        # ε-greedy strategy: explore or exploit
+        if np.random.rand() < epsilon:
+            action = np.random.choice(actions)  # random action (exploration)
+        else:
+            action = max(Q[state], key=Q[state].get)  # best known action (exploitation)
+        
+        next_state = get_next_state(state, action)
+        reward = get_reward(next_state)
+
+        # Q-learning formula
+        old_value = Q[state][action]
+        next_max = max(Q[next_state].values())
+        new_value = old_value + alpha * (reward + gamma * next_max - old_value)
+        Q[state][action] = new_value
+
+        state = next_state  # move to next state
+
+# 💡 VIVA QUESTIONS:
+# Q9. Write the Q-learning update formula.
+# A9. Q(s,a) ← Q(s,a) + α [r + γ * max(Q(s',a')) - Q(s,a)]
+# Q10. Why is Q-learning called an off-policy algorithm?
+# A10. Because it learns from the best possible future actions (greedy policy), not necessarily the one currently followed.
+
+# -----------------------------
+# Step 6: Show Learned Q-Values
+# -----------------------------
+print("✅ Q-values learned for each state:")
+for r in range(n_rows):
+    for c in range(n_cols):
+        print(f"State ({r},{c}): {Q[(r,c)]}")
+
+# Each state now has learned values for actions (some high near the goal).
+
+# -----------------------------
+# Step 7: Visualize the Learned Path
+# -----------------------------
+def get_best_path(start):
+    """Follow the greedy policy using highest Q-values"""
+    state = start
+    path = [state]
+    steps = 0
+    while not is_terminal(state) and steps < 50:
+        action = max(Q[state], key=Q[state].get)
+        state = get_next_state(state, action)
+        path.append(state)
+        steps += 1
+        if maze[state] == 1:  # avoid infinite loops on walls
+            break
+    return path
+
+best_path = get_best_path(start)
+
+# Mark path on maze for visualization
+maze_display = maze.copy().astype(str)
+for r, c in best_path:
+    if (r, c) != start and (r, c) != goal and maze[r, c] != 1:
+        maze_display[r, c] = '*'
+
+print("\n🏁 Best Path Learned by Agent:")
+print(maze_display)
+
+# Visualize the maze and path
+plt.figure(figsize=(6,6))
+sns.heatmap(maze == 1, cmap='gray', cbar=False)
+path_rows = [r for r, c in best_path]
+path_cols = [c for r, c in best_path]
+plt.plot(np.array(path_cols)+0.5, np.array(path_rows)+0.5, 'r-o', label='Learned Path')
+plt.gca().invert_yaxis()
+plt.title("Maze Environment with Learned Path (Red Line)")
+plt.legend()
+plt.show()
+
+# 🧭 The red line shows the path the agent learned to take from start to goal,
+# avoiding walls and minimizing steps (based on the Q-values).
+
+# 💡 VIVA QUESTIONS:
+# Q11. What does the path visualization represent?
+# A11. The agent’s learned optimal route from the start state to the goal.
+# Q12. Why are some cells skipped or avoided?
+# A12. Because the agent learned those lead to walls or suboptimal routes.
+
+# -----------------------------
+# Step 8: Summary
+# -----------------------------
+print("✅ Reinforcement Learning Summary:")
+print("• Environment: 5x5 Maze with obstacles and one goal.")
+print("• Algorithm: Q-Learning (model-free, off-policy).")
+print("• Policy: ε-greedy (ε = 0.2) for exploration vs exploitation.")
+print("• Rewards: +10 (goal), -5 (wall), -1 (each move).")
+print("• Agent gradually learned shortest or near-optimal path via trial and error.\n")
+
+# 💡 FINAL VIVA QUESTIONS:
+# Q13. What is the difference between policy-based and value-based RL?
+# A13. Value-based learns Q-values (e.g., Q-learning), while policy-based directly learns the action probabilities.
+# Q14. What is the role of exploration and exploitation in RL?
+# A14. Exploration finds new strategies; exploitation uses known best strategies.
+# Q15. What happens if ε = 0 or ε = 1?
+# A15. ε=0 → pure exploitation (no learning), ε=1 → pure exploration (random moves).
+# Q16. What is the main goal of reinforcement learning?
+# A16. To learn an optimal policy (mapping of states to actions) that maximizes cumulative reward.
+
+# ================================================================
+# 🎯 END OF CODE
+# ================================================================

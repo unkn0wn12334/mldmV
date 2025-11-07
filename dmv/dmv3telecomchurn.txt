@@ -1,0 +1,233 @@
+# ==============================================================
+# 📘 EXPERIMENT: Data Cleaning & Preparation
+# 🧾 TOPIC: Customer Churn Analysis for a Telecommunications Company
+# 📂 Dataset: Telecom_Customer_Churn.csv
+# ==============================================================
+
+# Importing required libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
+
+# --------------------------------------------------------------
+# STEP 1: Import the Dataset
+# --------------------------------------------------------------
+df = pd.read_csv("/content/telco.csv")  # Change the path as needed
+print("✅ Dataset loaded successfully!\n")
+
+# --------------------------------------------------------------
+# STEP 2: Explore the Dataset
+# --------------------------------------------------------------
+print("🔹 First 5 rows of dataset:\n", df.head(), "\n")
+print("🔹 Dataset Information:\n")
+print(df.info(), "\n")
+print("🔹 Summary Statistics:\n", df.describe(include='all'), "\n")
+
+# Purpose:
+# Helps understand structure, missing values, and data types before cleaning.
+
+# --------------------------------------------------------------
+# STEP 3: Handle Missing Values
+# --------------------------------------------------------------
+print("🔍 Checking for missing values:\n", df.isnull().sum(), "\n")
+
+# Strategy:
+# - Numerical columns → fill with median
+# - Categorical columns → fill with mode (most frequent value)
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col].fillna(df[col].mode()[0], inplace=True)
+    else:
+        df[col].fillna(df[col].median(), inplace=True)
+
+print("✅ Missing values handled successfully.\n")
+
+# --------------------------------------------------------------
+# STEP 4: Remove Duplicate Records
+# --------------------------------------------------------------
+before = df.shape[0]
+df.drop_duplicates(inplace=True)
+after = df.shape[0]
+print(f"🧹 Removed {before - after} duplicate rows.\n")
+
+# --------------------------------------------------------------
+# STEP 5: Fix Inconsistent or Improper Formatting
+# --------------------------------------------------------------
+# Example: Standardize 'Yes', 'No', etc.
+if 'Churn' in df.columns:
+    df['Churn'] = df['Churn'].replace({'yes': 'Yes', 'y': 'Yes', 'no': 'No', 'n': 'No'})
+
+# Remove extra spaces and ensure proper case formatting
+for col in df.select_dtypes(include='object').columns:
+    df[col] = df[col].str.strip().str.title()
+
+print("✅ Inconsistent data formatting standardized.\n")
+
+# --------------------------------------------------------------
+# STEP 6: Convert Data Types
+# --------------------------------------------------------------
+# Example: Convert 'TotalCharges' to numeric (sometimes stored as string)
+if 'Totalcharges' in df.columns:
+    df['Totalcharges'] = pd.to_numeric(df['Totalcharges'], errors='coerce')
+    df['Totalcharges'].fillna(df['Totalcharges'].median(), inplace=True)
+
+print("✅ Data types converted where necessary.\n")
+
+# --------------------------------------------------------------
+# STEP 7: Outlier Detection and Handling
+# --------------------------------------------------------------
+num_cols = df.select_dtypes(include=np.number).columns
+
+# Visualize outliers using boxplots
+for col in num_cols:
+    plt.figure(figsize=(7, 3))
+    sns.boxplot(x=df[col], color='lightcoral')
+    plt.title(f"📦 Outlier Detection — {col}")
+    plt.show()
+
+# Remove outliers using IQR method
+for col in num_cols:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+    df = df[(df[col] >= lower) & (df[col] <= upper)]
+
+print("✅ Outliers handled using IQR method.\n")
+
+# --------------------------------------------------------------
+# STEP 8: Feature Engineering
+# --------------------------------------------------------------
+# Create new informative features from existing ones
+
+service_cols = ['PhoneService', 'InternetService', 'OnlineSecurity',
+                'OnlineBackup', 'DeviceProtection', 'TechSupport',
+                'StreamingTV', 'StreamingMovies']
+
+# Create feature counting number of services subscribed by customer
+df['TotalServices'] = df[service_cols].apply(lambda x: x.eq('Yes').sum(), axis=1)
+
+# Create feature for Average Monthly Charges
+if 'Tenure' in df.columns and 'Totalcharges' in df.columns:
+    df['AvgMonthlyCharges'] = (df['Totalcharges'] / df['Tenure']).replace([np.inf, np.nan], 0)
+
+print("✅ Feature engineering completed.\n")
+
+# --------------------------------------------------------------
+# STEP 9: Encoding Categorical Variables & Normalization
+# --------------------------------------------------------------
+# Label encode categorical columns
+le = LabelEncoder()
+for col in df.select_dtypes(include='object').columns:
+    df[col] = le.fit_transform(df[col])
+
+# Normalize all numerical columns for uniform scaling
+scaler = StandardScaler()
+num_cols = df.select_dtypes(include=np.number).columns
+df[num_cols] = scaler.fit_transform(df[num_cols])
+
+print("✅ Encoding and normalization done.\n")
+
+# --------------------------------------------------------------
+# STEP 10: Train-Test Split (for further modeling)
+# --------------------------------------------------------------
+if 'Churn' in df.columns:
+    X = df.drop('Churn', axis=1)
+    y = df['Churn']
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    print(f"✅ Data split into Train ({X_train.shape[0]}) and Test ({X_test.shape[0]}) sets.\n")
+else:
+    print("⚠️ 'Churn' column not found. Skipping split.\n")
+
+# --------------------------------------------------------------
+# STEP 11: Visualization and Insights
+# --------------------------------------------------------------
+
+# 1️⃣ Churn distribution
+plt.figure(figsize=(6,4))
+sns.countplot(x='Churn', data=df, palette='pastel')
+plt.title("📊 Customer Churn Distribution")
+plt.xlabel("Churn (0 = No, 1 = Yes)")
+plt.ylabel("Count")
+plt.show()
+
+# 2️⃣ Correlation Heatmap
+plt.figure(figsize=(10,6))
+sns.heatmap(df.corr(), cmap='coolwarm', annot=False)
+plt.title("🔗 Correlation Heatmap (Numerical Features)")
+plt.show()
+
+# 3️⃣ Tenure vs Churn
+if 'Tenure' in df.columns:
+    plt.figure(figsize=(8,5))
+    sns.histplot(data=df, x='Tenure', hue='Churn', bins=30, kde=True, palette='viridis')
+    plt.title("📈 Tenure vs Churn — Longer Tenure = Less Churn")
+    plt.show()
+
+# --------------------------------------------------------------
+# STEP 12: Export Cleaned Data
+# --------------------------------------------------------------
+df.to_csv("Cleaned_Telecom_Customer_Churn.csv", index=False)
+print("💾 Cleaned dataset saved as 'Cleaned_Telecom_Customer_Churn.csv'\n")
+
+# --------------------------------------------------------------
+# ✅ SUMMARY OF THE PROCESS
+# --------------------------------------------------------------
+print("""
+🧭 PROCESS SUMMARY:
+1️⃣ Loaded and explored the dataset
+2️⃣ Cleaned missing values and duplicates
+3️⃣ Standardized text and fixed data types
+4️⃣ Detected and handled outliers using IQR
+5️⃣ Engineered new features (TotalServices, AvgMonthlyCharges)
+6️⃣ Encoded categorical and scaled numeric data
+7️⃣ Split dataset for modeling
+8️⃣ Visualized churn patterns and correlations
+9️⃣ Exported the cleaned dataset successfully
+""")
+
+# ==============================================================
+# 🎓 Viva Questions & Answers
+# ==============================================================
+
+"""
+1️⃣ What is data cleaning?
+→ It is the process of detecting and correcting (or removing) inaccurate records from a dataset
+   to improve data quality for analysis and modeling.
+
+2️⃣ Why do we handle missing values?
+→ Because missing data can lead to bias, errors, or incorrect conclusions during analysis.
+
+3️⃣ What is the IQR method for outlier removal?
+→ IQR (Interquartile Range) = Q3 - Q1.
+   Outliers are values that fall below Q1 - 1.5×IQR or above Q3 + 1.5×IQR.
+
+4️⃣ Why do we encode categorical data?
+→ Machine learning models require numerical input. Encoding converts categories (like “Yes/No”) into numbers.
+
+5️⃣ What is feature engineering?
+→ Creating new meaningful variables from raw data to improve model performance or insights.
+
+6️⃣ What is normalization or scaling?
+→ Adjusting numerical values to a common scale (usually 0–1 or z-score) to ensure equal importance during modeling.
+
+7️⃣ Why split data into train and test sets?
+→ To evaluate how well a model generalizes to unseen data and prevent overfitting.
+
+8️⃣ What insights can be drawn from churn analysis?
+→ Customers with low tenure or fewer subscribed services are more likely to churn.
+
+9️⃣ What is the role of correlation heatmaps?
+→ They show relationships between numerical variables to detect multicollinearity and dependencies.
+
+🔟 What are some common causes of customer churn in telecom?
+→ High charges, poor service quality, low customer engagement, or better competitor offers.
+"""

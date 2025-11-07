@@ -1,0 +1,154 @@
+# ==============================================================
+# 💳 K-Medoids Clustering on Credit Card Dataset
+# ==============================================================
+# Objective:
+# - Cluster customers using K-Medoids
+# - Determine optimal cluster count using Silhouette Method
+# ==============================================================
+
+# Step 1️⃣: Import Required Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+!pip install numpy==1.26.4 --force-reinstall
+!pip install scikit-learn-extra
+from sklearn_extra.cluster import KMedoids  # from scikit-learn-extra package
+
+# ==============================================================
+# Step 2️⃣: Load the Dataset
+# ==============================================================
+df = pd.read_csv("/content/CC GENERAL.csv")   # replace with your actual filename
+print("✅ Dataset Loaded Successfully!\n")
+display(df.head())
+
+print("\n📊 Dataset Info:")
+print(df.info())
+
+# Drop irrelevant columns (if any ID or unnamed columns exist)
+df = df.loc[:, ~df.columns.str.contains('^Unnamed|ID', case=False)]
+
+# Handle missing values
+df = df.dropna()
+
+# ==============================================================
+# Step 3️⃣: Feature Scaling
+# ==============================================================
+# Scaling ensures all features contribute equally to distance calculation
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(df)
+
+print("\n✅ Data Scaled Successfully!")
+
+# ==============================================================
+# Step 4️⃣: Determine Optimal Number of Clusters (Silhouette Method)
+# ==============================================================
+silhouette_scores = []
+K_range = range(2, 10)  # test for K = 2 to 9
+
+for k in K_range:
+    kmedoids = KMedoids(n_clusters=k, random_state=42, metric='euclidean')
+    kmedoids.fit(scaled_data)
+    score = silhouette_score(scaled_data, kmedoids.labels_)
+    silhouette_scores.append(score)
+    print(f"K = {k}, Silhouette Score = {score:.4f}")
+
+# Plot silhouette scores
+plt.figure(figsize=(7, 5))
+plt.plot(K_range, silhouette_scores, marker='o', color='teal')
+plt.title("Silhouette Method for Optimal K")
+plt.xlabel("Number of Clusters (K)")
+plt.ylabel("Silhouette Score")
+plt.grid(True)
+plt.show()
+
+# Choose best K (highest silhouette score)
+best_k = K_range[np.argmax(silhouette_scores)]
+print(f"\n🏆 Optimal Number of Clusters based on Silhouette Score: K = {best_k}")
+
+# ==============================================================
+# Step 5️⃣: Apply K-Medoids with Optimal K
+# ==============================================================
+kmedoids_final = KMedoids(n_clusters=best_k, random_state=42, metric='euclidean')
+kmedoids_final.fit(scaled_data)
+
+df['Cluster'] = kmedoids_final.labels_
+print("\n✅ K-Medoids Clustering Completed!")
+
+# ==============================================================
+# Step 6️⃣: Visualize Clusters (using PCA)
+# ==============================================================
+# Reduce dimensions to 2D using PCA for visualization
+pca = PCA(n_components=2)
+reduced_data = pca.fit_transform(scaled_data)
+df['PCA1'] = reduced_data[:, 0]
+df['PCA2'] = reduced_data[:, 1]
+
+plt.figure(figsize=(8,6))
+sns.scatterplot(x='PCA1', y='PCA2', hue='Cluster', data=df, palette='Set2', s=60)
+plt.title(f"K-Medoids Clustering Visualization (K={best_k})")
+plt.show()
+
+# ==============================================================
+# Step 7️⃣: Analyze Cluster Statistics
+# ==============================================================
+print("\n📈 Cluster Statistics:")
+display(df.groupby('Cluster').mean())
+
+# ==============================================================
+# Step 8️⃣: Interpretation
+# ==============================================================
+print(f"""
+✅ Summary:
+- Optimal K (no. of clusters): {best_k}
+- Highest Silhouette Score: {max(silhouette_scores):.4f}
+- K-Medoids formed {best_k} customer groups.
+- Each group has distinct spending or credit behavior.
+""")
+
+
+
+
+#viva
+| **Question**                             | **Answer (Simple & Confident)**                                                                                                                                             |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What is clustering?                      | Clustering is an **unsupervised learning** technique that groups similar data points into clusters based on distance or similarity.                                         |
+| What is the goal of clustering?          | To identify **natural patterns or groups** in data without using predefined labels.                                                                                         |
+| What type of algorithm is K-Medoids?     | It is a **partition-based unsupervised learning algorithm** used for clustering data into k groups.                                                                         |
+| How is K-Medoids different from K-Means? | K-Means uses **mean** of points as the cluster center, while K-Medoids uses a **real data point (medoid)** as the center. This makes K-Medoids more **robust to outliers**. |
+| What is a “medoid”?                      | A **medoid** is the most representative or centrally located data point in a cluster — the one with **minimum total distance** to all other points in that cluster.         |
+
+
+| **Question**                        | **Answer**                                                                                                                                                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Explain how K-Medoids works.        | 1️⃣ Choose K random medoids. <br> 2️⃣ Assign each data point to the nearest medoid. <br> 3️⃣ Compute the total cost (sum of distances). <br> 4️⃣ Swap medoids with non-medoids to minimize cost. <br> 5️⃣ Repeat until medoids stop changing. |
+| What distance metric is used?       | Usually **Euclidean distance**, but **Manhattan distance** can also be used.                                                                                                                                                                  |
+| What does “cost” mean in K-Medoids? | It is the **sum of distances** of all points to their assigned medoid. The goal is to minimize this cost.                                                                                                                                     |
+| When does the algorithm stop?       | When no further swapping reduces the cost — i.e., the medoids become stable.                                                                                                                                                                  |
+
+
+| Feature          | **K-Means**            | **K-Medoids**              |
+| ---------------- | ---------------------- | -------------------------- |
+| Cluster Center   | Mean of cluster points | Actual data point (Medoid) |
+| Handles Outliers | Poorly                 | Robust                     |
+| Type of Data     | Numerical only         | Works on mixed data        |
+| Speed            | Faster                 | Slower                     |
+| Algorithm Type   | Uses averages          | Uses actual data examples  |
+
+
+
+
+Silhouette Method (for Finding Optimal K)
+| **Question**                                | **Answer**                                                                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What is the Silhouette Method?              | It measures how well each data point fits into its assigned cluster compared to other clusters. It helps to determine the **optimal number of clusters (K)**.   |
+| What is the range of Silhouette Score?      | Ranges from **-1 to +1**.                                                                                                                                       |
+| What do different values mean?              | +1 → Perfectly clustered, 0 → Overlapping clusters, Negative → Wrong cluster assignment.                                                                        |
+| How do you calculate the Silhouette score?  |  [ S(i) = b(i) - a(i)/max(a(i), b(i)) ] where:a(i) = avg. distance to points in same cluster, b(i) = avg. distance to nearest other cluster. |
+| What is considered a good Silhouette score? | Usually **> 0.5** indicates well-separated clusters.                                                                                                            |
+| How do you select K from the graph?         | The **K** where Silhouette Score is highest is chosen as the optimal number of clusters.                                                                        |
+

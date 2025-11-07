@@ -1,0 +1,221 @@
+# ==============================================================
+# 📘 STOCK MARKET DATA ANALYSIS & VISUALIZATION
+# Dataset: Stock_Prices.csv
+# Subject: Data Modeling & Visualization (Subject Code: 417525)
+# ==============================================================
+# 🎯 Objective:
+# To perform time series analysis and visualization of stock market data.
+# The goal is to identify trends, correlations, seasonality, and make short-term forecasts.
+
+# ==============================================================
+# 1️⃣ IMPORT NECESSARY LIBRARIES
+# ==============================================================
+import pandas as pd                     # Data handling and manipulation
+import matplotlib.pyplot as plt         # For creating plots and visualizations
+import seaborn as sns                   # For advanced data visualization
+from statsmodels.tsa.seasonal import seasonal_decompose  # For trend and seasonality analysis
+from statsmodels.tsa.arima.model import ARIMA            # For forecasting time series data
+from datetime import datetime
+
+# ==============================================================
+# 2️⃣ LOAD THE DATASET
+# ==============================================================
+# Load the CSV file (update path if required)
+df = pd.read_csv("/content/datalab_export_2025-10-29 18_43_40.csv")
+
+# Preview first few rows to understand structure
+print("🔹 First 5 Rows:")
+print(df.head())
+
+# Display dataset info (column names, data types, null counts)
+print("\n🔹 Dataset Info:")
+print(df.info())
+
+# Check for missing values
+print("\n🔹 Missing Values:")
+print(df.isnull().sum())
+
+# ==============================================================
+# 3️⃣ DATA PREPROCESSING AND CLEANING
+# ==============================================================
+# Convert 'Date' column to datetime type for time series operations
+df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+# Sort dataset by date (important for time-dependent analysis)
+df = df.sort_values(by='Date')
+
+# Set 'Date' as index for resampling and time-based analysis
+df.set_index('Date', inplace=True)
+
+# ==============================================================
+# 📊 VISUALIZATION 1: CLOSING PRICE TREND OVER TIME
+# ==============================================================
+plt.figure(figsize=(10,5))
+plt.plot(df['Close'], color='blue', label='Closing Price')
+plt.title('📈 Stock Closing Price Trend Over Time')
+plt.xlabel('Date')
+plt.ylabel('Closing Price')
+plt.legend()
+plt.grid(True)
+plt.show()
+# 💬 This line graph shows how the stock’s closing price fluctuates over time,
+# helping identify upward trends, downward trends, or volatility phases.
+
+# ==============================================================
+# 📊 VISUALIZATION 2: MOVING AVERAGE (TREND SMOOTHING)
+# ==============================================================
+# Calculate 20-day and 50-day moving averages to observe medium and long-term trends
+df['MA_20'] = df['Close'].rolling(window=20).mean()
+df['MA_50'] = df['Close'].rolling(window=50).mean()
+
+plt.figure(figsize=(10,5))
+plt.plot(df['Close'], label='Close', color='blue')
+plt.plot(df['MA_20'], label='20-Day Moving Average', color='orange')
+plt.plot(df['MA_50'], label='50-Day Moving Average', color='green')
+plt.title('📉 Moving Averages to Identify Trends')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.legend()
+plt.grid(True)
+plt.show()
+# 💬 Moving averages smooth out random short-term fluctuations and highlight long-term trends.
+
+# ==============================================================
+# 📊 VISUALIZATION 3: VOLUME VS CLOSE PRICE
+# ==============================================================
+plt.figure(figsize=(10,5))
+sns.scatterplot(x='Volume', y='Close', data=df, color='purple')
+plt.title('📊 Relationship Between Trading Volume and Closing Price')
+plt.xlabel('Trading Volume')
+plt.ylabel('Closing Price')
+plt.grid(True)
+plt.show()
+# 💬 A scatter plot that helps observe if higher trading volumes affect the closing price
+# (e.g., more trades during market hype or crashes).
+
+# ==============================================================
+# 📊 VISUALIZATION 4: CORRELATION HEATMAP
+# ==============================================================
+plt.figure(figsize=(8,6))
+sns.heatmap(df.corr(numeric_only=True), annot=True, cmap='coolwarm', linewidths=0.5)
+plt.title('📈 Correlation Between Stock Variables')
+plt.show()
+# 💬 Correlation heatmap shows how variables like Open, High, and Volume are related.
+# High correlation between Open and Close indicates price movement consistency.
+
+# ==============================================================
+# 📊 VISUALIZATION 5: SEASONALITY ANALYSIS
+# ==============================================================
+# Decompose the Close price into trend, seasonality, and residuals using additive model
+decomposition = seasonal_decompose(df['Close'], model='additive', period=30)
+decomposition.plot()
+plt.suptitle('📆 Seasonal Decomposition of Stock Prices', fontsize=14)
+plt.show()
+# 💬 This decomposition separates the Close price into:
+# - Trend: Long-term direction (upward/downward)
+# - Seasonality: Regular repeating patterns (e.g., monthly/quarterly)
+# - Residuals: Irregular random noise
+
+# ==============================================================
+# 📊 VISUALIZATION 6: MONTHLY AVERAGE CLOSING PRICE
+# ==============================================================
+# Resample data by month and calculate average closing price
+df_monthly = df['Close'].resample('M').mean()
+
+plt.figure(figsize=(10,5))
+plt.plot(df_monthly, marker='o', color='teal')
+plt.title('📅 Average Monthly Closing Price Trend')
+plt.xlabel('Month')
+plt.ylabel('Average Close Price')
+plt.grid(True)
+plt.show()
+# 💬 This monthly trend helps investors identify long-term patterns or seasonality in stock prices.
+
+# ==============================================================
+# 🤖 FORECASTING: ARIMA MODEL (AUTOREGRESSIVE INTEGRATED MOVING AVERAGE)
+# ==============================================================
+# Split dataset into 80% train and 20% test sets
+train_size = int(len(df) * 0.8)
+train, test = df['Close'][:train_size], df['Close'][train_size:]
+
+# Build and fit ARIMA model (order=(p,d,q))
+model = ARIMA(train, order=(5,1,0))
+model_fit = model.fit()
+
+# Forecast same length as test data
+forecast = model_fit.forecast(steps=len(test))
+
+# Plot actual vs predicted
+plt.figure(figsize=(10,5))
+plt.plot(train, label='Train Data', color='gray')
+plt.plot(test, label='Actual Test Data', color='blue')
+plt.plot(test.index, forecast, label='Predicted (ARIMA)', color='red')
+plt.title('🔮 ARIMA Model Forecasting of Stock Prices')
+plt.xlabel('Date')
+plt.ylabel('Closing Price')
+plt.legend()
+plt.grid(True)
+plt.show()
+# 💬 ARIMA model uses past price trends and patterns to predict future values.
+# The red line shows predicted values vs the actual prices (blue).
+
+# ==============================================================
+# ✅ SUMMARY INSIGHTS
+# ==============================================================
+print("\n✅ KEY INSIGHTS:")
+print("- Stock prices display visible upward and downward trends across time.")
+print("- Moving averages effectively smooth out daily fluctuations for clearer trends.")
+print("- Correlation heatmap shows strong relationship among price-based columns.")
+print("- Seasonality analysis reveals repeating monthly patterns in stock prices.")
+print("- ARIMA model provides short-term forecasting and helps in decision-making.")
+
+# ==============================================================
+# 🎓 VIVA QUESTIONS (with Answers)
+# ==============================================================
+
+# Q1. What is the main goal of this experiment?
+# Ans: To analyze and visualize stock market data using time series techniques and forecast future prices.
+
+# Q2. Why do we convert the 'Date' column to datetime format?
+# Ans: So that pandas can handle time-based operations like resampling, indexing, and time series analysis.
+
+# Q3. What does a moving average represent in stock analysis?
+# Ans: It smooths out short-term fluctuations and highlights the underlying trend of stock prices.
+
+# Q4. Why is sorting data by date necessary?
+# Ans: Time series data must be in chronological order for accurate trend and forecasting analysis.
+
+# Q5. What does the correlation heatmap tell us?
+# Ans: It shows the strength and direction of relationships between numerical variables (e.g., Open vs Close).
+
+# Q6. What is seasonality in time series data?
+# Ans: Seasonality refers to recurring patterns or cycles (like monthly or quarterly variations).
+
+# Q7. What is the purpose of ARIMA model?
+# Ans: ARIMA is used for time series forecasting—it models dependencies between past values and future trends.
+
+# Q8. What does the 'order' parameter in ARIMA(p,d,q) represent?
+# Ans:
+# - p: number of autoregressive terms
+# - d: degree of differencing (to make series stationary)
+# - q: number of moving average terms
+
+# Q9. Why do we split the dataset into train and test sets?
+# Ans: To evaluate the model's predictive performance on unseen data.
+
+# Q10. What insights can be gained from this analysis?
+# Ans: 
+# - Long-term and short-term trends
+# - Relationship between trading volume and price
+# - Seasonal effects in prices
+# - Forecast of near-future stock prices using ARIMA
+
+# Q11. What libraries are commonly used for time series forecasting?
+# Ans: pandas, matplotlib, seaborn for visualization; statsmodels for decomposition and ARIMA.
+
+# Q12. How does visualization support financial decision-making?
+# Ans: It helps traders and analysts quickly interpret complex stock trends, volatility, and seasonality visually.
+
+# ==============================================================
+# ✅ END OF PROGRAM
+# ==============================================================

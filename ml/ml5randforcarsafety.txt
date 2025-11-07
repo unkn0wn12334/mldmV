@@ -1,0 +1,193 @@
+# ================================================================
+# 🚗 CAR EVALUATION DATASET — RANDOM FOREST CLASSIFIER (FULLY EXPLAINED)
+# ================================================================
+# This program demonstrates how to build, train, and evaluate a Random Forest Classifier
+# on the UCI Car Evaluation dataset.
+# It also visualizes feature importance and the confusion matrix.
+# ---------------------------------------------------------------
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# 💡 VIVA QUESTIONS:
+# Q1. Why do we use Random Forest instead of a single Decision Tree?
+# A1. Random Forest reduces overfitting and increases accuracy by averaging results from many trees.
+# Q2. What is the main advantage of using ensemble methods like Random Forest?
+# A2. Ensemble models combine multiple weak learners to form a strong, robust model.
+
+# -----------------------------
+# Step 2: Load the Dataset
+# -----------------------------
+# Dataset source: "car.data" or "car_evaluation.csv" (UCI Repository)
+# Columns: buying, maint, doors, persons, lug_boot, safety, class
+
+df = pd.read_csv("/content/car_evaluation.csv")
+
+print("✅ First 5 rows of dataset:")
+print(df.head(), "\n")
+
+print("Dataset Info:")
+print(df.info(), "\n")
+
+# 💡 VIVA QUESTIONS:
+# Q3. What kind of data is in this dataset?
+# A3. All features are categorical (e.g., 'low', 'med', 'high', 'vhigh').
+# Q4. What is the target variable in this dataset?
+# A4. The "class" column (car acceptability) — typically having values like unacc, acc, good, vgood.
+
+# -----------------------------
+# Step 3: Data Preprocessing
+# -----------------------------
+# Check for missing/null values
+print("Null values in each column:\n", df.isnull().sum(), "\n")
+
+# Encode categorical columns into numeric values using LabelEncoder
+encoder = LabelEncoder()
+for col in df.columns:
+    df[col] = encoder.fit_transform(df[col])
+
+print("✅ All categorical columns encoded numerically:\n")
+print(df.head(), "\n")
+
+# Separate features (X) and target (y)
+X = df.drop("unacc", axis=1)   # features
+y = df["unacc"]                # target
+
+# 💡 VIVA QUESTIONS:
+# Q5. Why did we use LabelEncoder instead of OneHotEncoder?
+# A5. Because Random Forest can handle label-encoded categorical data well, 
+#     and one-hot encoding isn’t mandatory for tree-based models.
+# Q6. What is encoding and why do we need it?
+# A6. Encoding converts categorical (textual) data into numeric form so ML algorithms can process it.
+
+# -----------------------------
+# Step 4: Split into Training and Test Sets
+# -----------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print("Training set:", X_train.shape)
+print("Testing set:", X_test.shape, "\n")
+
+# 💡 VIVA QUESTIONS:
+# Q7. Why do we use stratify=y in train_test_split?
+# A7. To ensure the class distribution in train/test sets matches the original dataset (balanced split).
+# Q8. What is the usual split ratio for training/testing?
+# A8. Commonly 80% training and 20% testing.
+
+# -----------------------------
+# Step 5: Train the Random Forest Classifier
+# -----------------------------
+rf_model = RandomForestClassifier(
+    n_estimators=100,  # Number of decision trees
+    criterion='gini',  # Splitting criterion (can also use 'entropy')
+    random_state=42,
+    n_jobs=-1          # Use all CPU cores for faster training
+)
+
+rf_model.fit(X_train, y_train)
+print("✅ Random Forest model trained successfully.\n")
+
+# 💡 VIVA QUESTIONS:
+# Q9. What does 'n_estimators' mean?
+# A9. It represents the number of decision trees built in the forest.
+# Q10. What is the difference between 'gini' and 'entropy'?
+# A10. Both measure impurity — Gini is faster, Entropy is more computationally expensive (uses log).
+
+# -----------------------------
+# Step 6: Model Prediction
+# -----------------------------
+y_pred = rf_model.predict(X_test)
+
+# 💡 VIVA QUESTION:
+# Q11. What is the purpose of the predict() function?
+# A11. It uses the trained model to predict output labels for new/unseen data.
+
+# -----------------------------
+# Step 7: Model Evaluation
+# -----------------------------
+accuracy = accuracy_score(y_test, y_pred)
+print(f"🎯 Accuracy of Random Forest: {accuracy*100:.2f}%\n")
+
+print("Classification Report:\n", classification_report(y_test, y_pred))
+
+# 🔍 Visualization: Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(7,5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', cbar=False)
+plt.title("Confusion Matrix — Random Forest Classifier")
+plt.xlabel("Predicted Labels")
+plt.ylabel("Actual Labels")
+plt.show()
+
+# 🧩 This heatmap shows how many predictions matched the actual classes.
+# Diagonal values = correct predictions; off-diagonal = misclassifications.
+
+# 💡 VIVA QUESTIONS:
+# Q12. What is a confusion matrix?
+# A12. A matrix showing how many correct/incorrect predictions were made for each class.
+# Q13. What is precision, recall, and F1-score?
+# A13. 
+#   - Precision: Correct positive predictions / Total predicted positives
+#   - Recall: Correct positive predictions / Total actual positives
+#   - F1-score: Harmonic mean of Precision and Recall
+
+# -----------------------------
+# Step 8: Feature Importance Visualization
+# -----------------------------
+importances = rf_model.feature_importances_
+features = X.columns
+
+plt.figure(figsize=(8,5))
+sns.barplot(x=importances, y=features, palette='viridis')
+plt.title("Feature Importance in Random Forest Model")
+plt.xlabel("Importance Score")
+plt.ylabel("Feature")
+plt.show()
+
+# 🌿 This bar chart shows which features contributed most to the model's decision.
+# For example, 'safety' and 'persons' usually have the highest importance in predicting car class.
+
+# 💡 VIVA QUESTIONS:
+# Q14. How does Random Forest calculate feature importance?
+# A14. By measuring how much each feature reduces impurity across all trees.
+# Q15. What does a higher feature importance score mean?
+# A15. It means that feature had a greater impact on decision-making during classification.
+
+# -----------------------------
+# Step 9: Summary
+# -----------------------------
+print("✅ SUMMARY:")
+print("• Dataset: Car Evaluation (UCI Repository)")
+print("• All features were categorical — encoded using LabelEncoder")
+print("• Model: Random Forest (100 trees, Gini criterion)")
+print("• Accuracy: typically around 90–95%")
+print("• Confusion matrix visualized model performance")
+print("• Feature importance shows which inputs influenced decisions most\n")
+
+# 💡 FINAL VIVA QUESTIONS:
+# Q16. What are some hyperparameters of Random Forest?
+# A16. n_estimators, max_depth, min_samples_split, criterion, max_features, bootstrap, etc.
+# Q17. What causes overfitting in Random Forest?
+# A17. If the trees are too deep or too many, the model memorizes training data instead of generalizing.
+# Q18. Can Random Forest handle categorical data directly?
+# A18. Not in sklearn — data must be numerically encoded first.
+# Q19. What is the role of randomness in Random Forest?
+# A19. Randomness comes from sampling rows (bootstrapping) and columns (features), improving robustness.
+# Q20. What type of algorithm is Random Forest — supervised or unsupervised?
+# A20. It’s a **supervised learning** algorithm used for both classification and regression tasks.
+
+# ================================================================
+# 🎯 END OF CODE
+# ================================================================

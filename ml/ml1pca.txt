@@ -1,0 +1,190 @@
+# ============================================================
+# 🧩 PCA on Wine Dataset — Full Visualization & Viva Guide
+# ============================================================
+
+# ---- Step 0: Import Libraries ----
+# Importing essential Python libraries for data handling, visualization, and PCA
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+# ---- Step 1: Load the Dataset ----
+# Load the CSV file (make sure wine.csv is in your working directory)
+df = pd.read_csv("/content/wine.csv")
+
+print("✅ First 5 rows of the dataset:")
+print(df.head(), "\n")
+
+# Separate features (X) and target labels (y)
+# "Customer_Segment" is our target (class label)
+X = df.drop("Customer_Segment", axis=1)
+y = df["Customer_Segment"]
+
+# ---- Step 2: Standardize the Features ----
+# PCA is scale-dependent — features with larger numerical ranges dominate variance.
+# Hence, we normalize all features to have mean=0 and std=1 using StandardScaler.
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# ---- Step 3: Apply PCA (Principal Component Analysis) ----
+# PCA reduces dimensionality by finding directions (principal components)
+# that maximize the variance in data while minimizing information loss.
+pca = PCA()
+X_pca = pca.fit_transform(X_scaled)
+
+# ---- Step 4: Show Eigenvalues and Eigenvectors ----
+# Eigenvalues → Variance captured by each principal component.
+# Eigenvectors → Directions (linear combinations of original features) of these components.
+eigenvalues = pca.explained_variance_
+eigenvectors = pca.components_
+
+print("📈 Eigenvalues (Variance captured by each PC):\n", eigenvalues, "\n")
+print("🧭 Eigenvectors (Principal component directions):\n", eigenvectors, "\n")
+
+# ---- Step 5: Visualize Eigenvalues ----
+plt.figure(figsize=(8,5))
+plt.bar(range(1, len(eigenvalues)+1), eigenvalues, color='teal')
+plt.xlabel("Principal Component")
+plt.ylabel("Eigenvalue")
+plt.title("📊 Eigenvalues of Principal Components")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+# 💬 This bar chart shows how much variance each principal component captures.
+# A higher eigenvalue → that component explains more information in the data.
+
+# ---- Step 6: Explained Variance Ratio ----
+# It shows the percentage of total variance captured by each PC.
+explained_variance_ratio = pca.explained_variance_ratio_
+cum_var = np.cumsum(explained_variance_ratio)
+
+# Plot the individual and cumulative variance ratios
+plt.figure(figsize=(10,5))
+plt.bar(range(1, len(explained_variance_ratio)+1), explained_variance_ratio,
+        alpha=0.6, label='Individual Explained Variance')
+plt.step(range(1, len(cum_var)+1), cum_var, where='mid',
+         label='Cumulative Explained Variance', color='red')
+plt.xlabel("Principal Components")
+plt.ylabel("Explained Variance Ratio")
+plt.title("📈 Explained Variance by Each Principal Component")
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+# 💬 This helps decide how many components to keep.
+# Example: If first 2 PCs explain 90% variance, we can reduce data to 2D safely.
+
+# ---- Step 7: Visualize Eigenvectors as Heatmap ----
+# This heatmap shows the correlation between original features and PCs.
+# Higher magnitude (red/blue) means that feature strongly contributes to that PC.
+plt.figure(figsize=(10,6))
+sns.heatmap(pd.DataFrame(eigenvectors,
+                         columns=X.columns,
+                         index=[f'PC{i+1}' for i in range(len(eigenvectors))]),
+            cmap="coolwarm", annot=True, fmt=".2f")
+plt.title("🔥 Feature Contribution (Eigenvectors) to Principal Components")
+plt.xlabel("Original Features")
+plt.ylabel("Principal Components")
+plt.show()
+# 💬 The heatmap reveals which original features influence which components the most.
+
+# ---- Step 8: Choose Top 2 Components for Visualization ----
+# Reduce the dataset to 2D using only the first 2 principal components
+pca_2 = PCA(n_components=2)
+X_pca_2 = pca_2.fit_transform(X_scaled)
+
+# Combine new 2D components with target labels
+pca_df = pd.DataFrame(data=X_pca_2, columns=["PC1", "PC2"])
+pca_df["Customer_Segment"] = y.values
+
+print("✅ Transformed Data (first 5 rows):")
+print(pca_df.head(), "\n")
+
+# ---- Step 9: Scatter Plot of First 2 PCs ----
+plt.figure(figsize=(8,6))
+sns.scatterplot(data=pca_df, x="PC1", y="PC2", hue="Customer_Segment",
+                palette="viridis", s=80, edgecolor='k')
+plt.title("🍷 Wine Dataset Projected onto First Two Principal Components")
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.legend(title="Customer Segment")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+# 💬 This scatter plot shows how well PCA separates classes (wine segments) in 2D.
+# If clusters are visible, PCA successfully captured meaningful variance.
+
+# ---- Step 10: Biplot (Samples + Feature Directions) ----
+# The biplot combines both:
+# - Data points (as in scatter plot)
+# - Original feature directions (as arrows)
+plt.figure(figsize=(9,7))
+sns.scatterplot(x=X_pca_2[:,0], y=X_pca_2[:,1], hue=y,
+                palette='plasma', s=70, edgecolor='k')
+
+# Add arrows for feature directions
+for i, feature in enumerate(X.columns):
+    plt.arrow(0, 0,
+              pca_2.components_[0, i]*3,   # Scale arrows for visibility
+              pca_2.components_[1, i]*3,
+              color='r', alpha=0.7, head_width=0.1)
+    plt.text(pca_2.components_[0, i]*3.2, pca_2.components_[1, i]*3.2, feature, color='black')
+
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.title("📍 PCA Biplot (Samples + Feature Directions)")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+# 💬 The biplot shows both class separation and the contribution/direction of each feature.
+# Features pointing in similar directions are correlated;
+# features pointing opposite directions are negatively correlated.
+
+# ---- Step 11: Comments & Interpretation ----
+# 1️⃣ Eigenvalues show how much variance each PC captures.
+# 2️⃣ Explained variance ratio helps choose how many PCs to retain.
+# 3️⃣ Scatter plot shows how well PCA separates classes visually.
+# 4️⃣ Heatmap shows the strength of feature contributions.
+# 5️⃣ Biplot gives a combined view of samples and feature correlations.
+
+# ============================================================
+# 🎓 VIVA / CROSS QUESTIONS (PCA Practical)
+# ============================================================
+
+# Q1️⃣ What is PCA and why is it used?
+# ➤ PCA (Principal Component Analysis) is a dimensionality reduction technique that
+#   transforms correlated features into a smaller number of uncorrelated components (PCs)
+#   while retaining maximum variance.
+
+# Q2️⃣ What are eigenvalues and eigenvectors in PCA?
+# ➤ Eigenvalues = Variance captured by each principal component.
+# ➤ Eigenvectors = Directions of these principal components in the feature space.
+
+# Q3️⃣ Why do we standardize data before applying PCA?
+# ➤ Because PCA is affected by the scale of variables — features with large numeric ranges
+#   would dominate variance without standardization.
+
+# Q4️⃣ How do you decide how many principal components to select?
+# ➤ Using the explained variance ratio — we choose the smallest number of components
+#   that capture most of the total variance (e.g., 90–95%).
+
+# Q5️⃣ What is the interpretation of a biplot?
+# ➤ It shows both data points and feature influence vectors, helping understand which features
+#   are responsible for separating the data in PC space.
+
+# Q6️⃣ Can PCA be used for supervised learning?
+# ➤ PCA itself is unsupervised — it ignores target labels. However, it can be used for
+#   feature extraction before applying a supervised classifier (like SVM or Logistic Regression).
+
+# Q7️⃣ What happens if features are highly correlated?
+# ➤ PCA combines them into fewer components — reducing redundancy while keeping key variance.
+
+# Q8️⃣ What is the limitation of PCA?
+# ➤ It’s a linear method, so it may fail to capture nonlinear relationships in data.
+
+# Q9️⃣ What do PC1 and PC2 represent in the scatter plot?
+# ➤ PC1 is the direction of maximum variance, and PC2 is the direction of the second-highest
+#   variance orthogonal to PC1.
+
+# ============================================================
+# ✅ END OF PCA EXPERIMENT
+# ============================================================

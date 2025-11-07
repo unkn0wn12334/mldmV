@@ -1,0 +1,171 @@
+# ================================================================
+# ✏️ HANDWRITTEN DIGITS CLASSIFICATION USING SVM — WITH FULL COMMENTS
+# ================================================================
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+# These are essential libraries for data manipulation, visualization, and model training
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.decomposition import PCA
+
+# -----------------------------
+# Step 2: Load the Digits Dataset
+# -----------------------------
+# The Digits dataset contains 8x8 pixel grayscale images of handwritten digits (0–9)
+# Each image is flattened into 64 numerical pixel values (features)
+digits = datasets.load_digits()
+
+X = digits.data        # Features → pixel values (64 per image)
+y = digits.target      # Labels → digits (0 to 9)
+
+print("✅ Dataset loaded successfully!")
+print("Shape of X:", X.shape)     # Should be (1797, 64)
+print("Shape of y:", y.shape)     # Should be (1797,)
+print("Classes:", np.unique(y), "\n")  # 0–9
+
+# -----------------------------
+# Step 3: Visualize Few Sample Digits
+# -----------------------------
+# This helps understand the nature of the dataset — actual digit images (8x8)
+plt.figure(figsize=(8, 4))
+for i in range(10):
+    plt.subplot(2, 5, i+1)
+    plt.imshow(digits.images[i], cmap='gray')   # Display grayscale images
+    plt.title(f"Digit: {digits.target[i]}")
+    plt.axis('off')
+plt.suptitle("Sample Images from the Digits Dataset", fontsize=14)
+plt.show()
+
+# -----------------------------
+# Step 4: Preprocess the Data
+# -----------------------------
+# StandardScaler normalizes data so all features have mean=0, std=1
+# This improves SVM performance as SVM is distance-based.
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split data into training and testing sets (80-20)
+# stratify=y → ensures each digit appears equally in both train and test
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print("Training set:", X_train.shape, "Testing set:", X_test.shape)
+
+# -----------------------------
+# Step 5: Train the SVM Classifier
+# -----------------------------
+# SVM (Support Vector Machine) is a supervised classification algorithm.
+# RBF (Radial Basis Function) kernel handles nonlinear relationships.
+svm_model = SVC(kernel='rbf', C=10, gamma=0.01)
+svm_model.fit(X_train, y_train)
+
+print("\n✅ SVM model trained successfully!")
+
+# -----------------------------
+# Step 6: Model Prediction and Evaluation
+# -----------------------------
+# Predict labels on the test set
+y_pred = svm_model.predict(X_test)
+
+# Calculate accuracy — percentage of correctly predicted digits
+acc = accuracy_score(y_test, y_pred)
+print(f"\n🎯 Accuracy of SVM: {acc*100:.2f}%")
+
+# Print detailed classification metrics (precision, recall, F1-score)
+print("\n📋 Classification Report:\n", classification_report(y_test, y_pred))
+
+# Plot confusion matrix → shows where the model confused between digits
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(8,6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix — SVM on Digits Dataset")
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.show()
+
+# -----------------------------
+# Step 7: Visualize SVM Decision Space (with PCA)
+# -----------------------------
+# PCA (Principal Component Analysis) reduces high-dimensional (64D) data to 2D for visualization
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_scaled)
+
+# Train SVM again on the 2D PCA data — for visualization purpose only
+svm_2d = SVC(kernel='rbf', C=10, gamma=0.01)
+svm_2d.fit(X_pca, y)
+
+# Scatter plot shows each sample projected onto PC1 & PC2 colored by their actual digit
+plt.figure(figsize=(8,6))
+scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='tab10', s=15)
+plt.legend(handles=scatter.legend_elements()[0], labels=np.unique(y), title="Digits")
+plt.title("PCA Projection of Digits Dataset with SVM Classes")
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.show()
+
+# -----------------------------
+# Step 8: Visualize Random Predictions
+# -----------------------------
+# Display few test images with predicted and actual labels
+plt.figure(figsize=(8,4))
+for i, index in enumerate(np.random.choice(len(X_test), 10, replace=False)):
+    image = X_test[index].reshape(8,8)
+    plt.subplot(2,5,i+1)
+    plt.imshow(image, cmap='gray')
+    plt.title(f"Pred: {y_pred[index]}\nTrue: {y_test[index]}")
+    plt.axis('off')
+plt.suptitle("Random Predictions by SVM Model", fontsize=14)
+plt.show()
+
+# -----------------------------
+# Step 9: Summary
+# -----------------------------
+print("✅ Model Summary:")
+print("• Algorithm Used: Support Vector Machine (SVM)")
+print("• Kernel: RBF (nonlinear, maps data into higher dimensions)")
+print("• Data Scaled using StandardScaler")
+print("• PCA applied for 2D Visualization (not for training)")
+print("• Evaluation Metrics: Accuracy, Confusion Matrix, Classification Report")
+print("• Achieved Accuracy:", round(acc*100, 2), "%")
+
+# ================================================================
+# 🎓 VIVA QUESTIONS (be prepared)
+# ================================================================
+
+# 1️⃣ What is SVM? 
+# → Support Vector Machine is a supervised learning algorithm that finds the optimal hyperplane to separate classes with maximum margin.
+
+# 2️⃣ Why use RBF kernel?
+# → It handles nonlinear data by mapping it into higher dimensions where linear separation is possible.
+
+# 3️⃣ What are ‘C’ and ‘gamma’?
+# → ‘C’ controls the penalty for misclassification (higher C → less tolerance for errors).
+# → ‘gamma’ defines the influence of a single training example (higher gamma → tighter decision boundary).
+
+# 4️⃣ Why scale data before SVM?
+# → SVM uses distance-based calculations; scaling ensures all features contribute equally.
+
+# 5️⃣ What is PCA and why used here?
+# → PCA reduces dimensionality; we use it for visualization (project 64D → 2D).
+
+# 6️⃣ What does the confusion matrix tell?
+# → It shows correct vs incorrect predictions for each class (diagonal = correct predictions).
+
+# 7️⃣ What are Precision, Recall, and F1-score?
+# → Precision = TP / (TP + FP)
+# → Recall = TP / (TP + FN)
+# → F1-score = Harmonic mean of precision and recall.
+
+# 8️⃣ What would happen if we used Linear kernel instead of RBF?
+# → Model would perform worse for nonlinear data; may not capture curved decision boundaries.

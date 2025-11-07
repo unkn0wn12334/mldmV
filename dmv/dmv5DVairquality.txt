@@ -1,0 +1,161 @@
+# --------------------------------------------
+# 📘 Importing Required Libraries
+# --------------------------------------------
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 🧠 Viva Question: Why do we import pandas, matplotlib, and seaborn?
+# 👉 pandas is used for data handling, matplotlib & seaborn for visualization.
+
+# --------------------------------------------
+# 🧾 Step 1: Load Dataset
+# --------------------------------------------
+df = pd.read_csv("/content/City_Air_Quality_Extended.csv")
+
+print("🔹 First 5 Rows of the Dataset:")
+print(df.head())
+
+# 🧠 Viva Question: Why do we view the first 5 rows using head()?
+# 👉 To quickly check data structure, missing values, and column names.
+
+# --------------------------------------------
+# 🧩 Step 2: Explore Dataset
+# --------------------------------------------
+print("\n🔹 Basic Info:")
+print(df.info())
+
+print("\n🔹 Summary Statistics:")
+print(df.describe())
+
+# 🧠 Viva Question: What is df.info() and df.describe() used for?
+# 👉 info() gives column types & null values; describe() gives numeric summary (mean, std, etc.)
+
+# --------------------------------------------
+# 🧹 Step 3: Data Cleaning
+# --------------------------------------------
+# Combine 'Date' and 'Time' columns into one datetime column if separate
+if 'Date' in df.columns and 'Time' in df.columns:
+    df['Datetime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], errors='coerce')
+elif 'date' in df.columns and 'time' in df.columns:
+    df['Datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'], errors='coerce')
+
+# Drop rows with missing datetime
+df = df.dropna(subset=['Datetime'])
+
+# Sort by time to make time series plots correct
+df = df.sort_values('Datetime')
+
+# 🧠 Viva Question: Why do we combine Date and Time columns?
+# 👉 To perform time-series analysis, we need a single datetime column for chronological plots.
+
+# --------------------------------------------
+# 🧭 Step 4: Identify Important Variables
+# --------------------------------------------
+pollutants = ['PM2.5', 'PM10', 'CO']
+if not all(col in df.columns for col in pollutants):
+    print("\n⚠️ Note: Some pollutant columns may be missing; adjust list accordingly.")
+
+# 🧠 Viva Question: What are pollutants in air quality data?
+# 👉 Substances like PM2.5, PM10, and CO that determine AQI levels.
+
+# --------------------------------------------
+# 📈 Step 5: Visualize AQI Trend Over Time
+# --------------------------------------------
+plt.figure(figsize=(10,5))
+plt.plot(df['Datetime'], df['AQI'], color='orange', linewidth=2)
+plt.title("🌆 AQI Trend Over Time")
+plt.xlabel("Date")
+plt.ylabel("Air Quality Index (AQI)")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 📝 This plot shows how AQI changes over time — helpful for identifying peaks (pollution spikes).
+# 🧠 Viva Question: Why use a line plot for AQI over time?
+# 👉 Because it clearly shows trends and fluctuations chronologically.
+
+# --------------------------------------------
+# 📊 Step 6: Plot Individual Pollutant Trends (PM2.5, PM10, CO)
+# --------------------------------------------
+plt.figure(figsize=(12,6))
+for pollutant in pollutants:
+    if pollutant in df.columns:
+        plt.plot(df['Datetime'], df[pollutant], label=pollutant)
+
+plt.title("📉 Pollutant Levels Over Time")
+plt.xlabel("Date")
+plt.ylabel("Pollutant Concentration (µg/m³ or ppm)")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 📝 This plot helps you see which pollutant contributes the most to poor air quality.
+# 🧠 Viva Question: Why plot multiple pollutants together?
+# 👉 To compare their relative levels and identify which pollutant is dominant.
+
+# --------------------------------------------
+# 📊 Step 7: Bar Plot Comparing AQI on Different Days
+# --------------------------------------------
+df['DateOnly'] = df['Datetime'].dt.date
+daily_aqi = df.groupby('DateOnly')['AQI'].mean().reset_index()
+
+plt.figure(figsize=(12,5))
+plt.bar(daily_aqi['DateOnly'], daily_aqi['AQI'], color='skyblue')
+plt.xticks(rotation=45)
+plt.title("📊 Average Daily AQI Levels")
+plt.xlabel("Date")
+plt.ylabel("Average AQI")
+plt.tight_layout()
+plt.show()
+
+# 📝 Shows daily average pollution levels — easy to spot highest polluted days.
+# 🧠 Viva Question: Why do we group by date for AQI?
+# 👉 To summarize and compare pollution levels on a daily basis.
+
+# --------------------------------------------
+# 📦 Step 8: Box Plot for AQI Distribution
+# --------------------------------------------
+plt.figure(figsize=(8,5))
+sns.boxplot(y=df['AQI'], color='lightcoral')
+plt.title("📦 Distribution of AQI Values")
+plt.ylabel("AQI")
+plt.tight_layout()
+plt.show()
+
+# 📝 Box plot shows AQI spread & outliers (extreme pollution spikes).
+# 🧠 Viva Question: What does a boxplot represent?
+# 👉 It shows median, quartiles, and outliers for numeric data distribution.
+
+# --------------------------------------------
+# ☁️ Step 9: Scatter Plot — AQI vs Pollutants
+# --------------------------------------------
+plt.figure(figsize=(15,4))
+for i, pollutant in enumerate(pollutants):
+    if pollutant in df.columns:
+        plt.subplot(1, len(pollutants), i+1)
+        plt.scatter(df[pollutant], df['AQI'], alpha=0.6, color='teal')
+        plt.title(f"AQI vs {pollutant}")
+        plt.xlabel(pollutant)
+        plt.ylabel("AQI")
+
+plt.tight_layout()
+plt.show()
+
+# 📝 Scatter plots show correlation visually — upward trend → strong positive relation.
+# 🧠 Viva Question: What does correlation between pollutant and AQI indicate?
+# 👉 Higher pollutant concentration leading to higher AQI means that pollutant has a strong impact.
+
+# --------------------------------------------
+# 🔥 Step 10: Correlation Heatmap
+# --------------------------------------------
+plt.figure(figsize=(7,5))
+sns.heatmap(df[['AQI'] + pollutants].corr(), annot=True, cmap="YlOrRd", fmt=".2f")
+plt.title("🔥 Correlation Between AQI and Pollutants")
+plt.tight_layout()
+plt.show()
+
+# 📝 Heatmap gives quantitative correlation between AQI and pollutants.
+# 🧠 Viva Question: Why use correlation heatmap?
+# 👉 To identify which pollutant is most associated with AQI based on correlation coefficients.

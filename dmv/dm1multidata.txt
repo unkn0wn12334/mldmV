@@ -1,0 +1,258 @@
+# ================================================================
+# 🛒 SALES DATA INTEGRATION & ANALYSIS (CSV, EXCEL, JSON)
+# ================================================================
+# Subject: COMPUTER LABORATORY-I (Data Modeling & Visualization)
+# ================================================================
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+import warnings
+warnings.filterwarnings('ignore')
+
+# -----------------------------
+# Step 2: Load Datasets from Multiple Formats
+# -----------------------------
+# The data is available in different formats: CSV, Excel, and JSON.
+# We will load each one separately and inspect them before merging.
+
+csv = pd.read_csv('sales_data_sample.csv', encoding="cp1252")
+excel = pd.read_excel('Sample-Sales-Data.xlsx')
+json_data = pd.read_json('customers.json')
+
+print("✅ Datasets loaded successfully.\n")
+
+# -----------------------------
+# Step 3: Explore Each Dataset
+# -----------------------------
+print("CSV Dataset Info:")
+print(csv.info(), "\n")
+
+print("Excel Dataset Info:")
+print(excel.info(), "\n")
+
+print("JSON Dataset Info:")
+print(json_data.info(), "\n")
+
+# -----------------------------
+# Step 4: Data Cleaning (Handling Missing Values, Duplicates)
+# -----------------------------
+
+# --- For CSV ---
+print("🧹 Cleaning CSV Data...")
+csv['ADDRESSLINE2'] = csv['ADDRESSLINE2'].fillna('Not Available')
+csv['TERRITORY'] = csv['TERRITORY'].fillna('Unknown')
+csv = csv.drop(columns=['STATE', 'POSTALCODE'], errors='ignore')
+csv.drop_duplicates(inplace=True)
+
+# --- For Excel ---
+print("🧹 Cleaning Excel Data...")
+excel.fillna(method='ffill', inplace=True)  # forward fill
+excel.drop_duplicates(inplace=True)
+
+# --- For JSON ---
+print("🧹 Cleaning JSON Data...")
+json_data.fillna('Unknown', inplace=True)
+json_data.drop_duplicates(inplace=True)
+
+# -----------------------------
+# Step 5: Combine into a Unified DataFrame
+# -----------------------------
+# To combine, columns should be similar or at least mergeable.
+# We use ignore_index=True to reset index after concatenation.
+
+unified_data = pd.concat([csv, excel, json_data], ignore_index=True, sort=False)
+print("\n✅ Unified dataset created successfully.")
+print(unified_data.info())
+
+# -----------------------------
+# Step 6: Handle Outliers in Sales Column
+# -----------------------------
+# Outliers can affect average sales, so let's handle them using the IQR method.
+
+if 'SALES' in unified_data.columns:
+    Q1 = unified_data['SALES'].quantile(0.25)
+    Q3 = unified_data['SALES'].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    before_count = unified_data.shape[0]
+    unified_data = unified_data[(unified_data['SALES'] >= lower_bound) & (unified_data['SALES'] <= upper_bound)]
+    after_count = unified_data.shape[0]
+
+    print(f"\nRemoved {before_count - after_count} outliers from SALES column.")
+
+# -----------------------------
+# Step 7: Exploratory Data Analysis (EDA)
+# -----------------------------
+print("\nDescriptive Statistics for Unified Data:")
+print(unified_data.describe(include='all'))
+
+# -----------------------------
+# Step 8: Sales Aggregations & Calculations
+# -----------------------------
+
+# Total Sales
+total_sales = unified_data['SALES'].sum()
+print(f"\n💰 Total Sales Amount: {total_sales:,.2f}")
+
+# Average Sales by Product Line
+if 'PRODUCTLINE' in unified_data.columns:
+    category_sales = unified_data.groupby('PRODUCTLINE')['SALES'].mean()
+    print("\nAverage Sales by Product Line:\n", category_sales)
+
+# -----------------------------
+# Step 9: Data Visualization
+# -----------------------------
+plt.style.use('seaborn-v0_8')
+
+# --- (A) Mean Sales by Product Line ---
+plt.figure(figsize=(10,6))
+sns.barplot(x=category_sales.index, y=category_sales.values, palette="viridis")
+plt.title("📊 Average Sales by Product Line")
+plt.xlabel("Product Line")
+plt.ylabel("Average Sales")
+plt.xticks(rotation=45)
+plt.show()
+# 💬 This bar chart shows which product lines generate higher average sales per order.
+
+# --- (B) Total Sales by Product Line ---
+plt.figure(figsize=(10,6))
+sns.barplot(x="PRODUCTLINE", y="SALES", data=unified_data, estimator=sum, ci=None, palette="magma")
+plt.title("🏷️ Total Sales by Product Line")
+plt.xlabel("Product Line")
+plt.ylabel("Total Sales")
+plt.xticks(rotation=45)
+plt.show()
+# 💬 This plot visualizes overall contribution of each product line to total revenue.
+
+# --- (C) Top 10 Countries by Total Sales ---
+if 'COUNTRY' in unified_data.columns:
+    top_countries = unified_data.groupby("COUNTRY")["SALES"].sum().nlargest(10)
+    plt.figure(figsize=(10,5))
+    sns.barplot(x=top_countries.index, y=top_countries.values, palette="coolwarm")
+    plt.title("🌍 Top 10 Countries by Total Sales")
+    plt.ylabel("Total Sales")
+    plt.xlabel("Country")
+    plt.xticks(rotation=45)
+    plt.show()
+    # 💬 Shows which countries have the highest overall sales revenue.
+
+# --- (D) Deal Size Distribution (Pie Chart) ---
+if 'DEALSIZE' in unified_data.columns:
+    plt.figure(figsize=(6,6))
+    unified_data["DEALSIZE"].value_counts().plot.pie(autopct='%1.1f%%', startangle=90, colors=sns.color_palette('pastel'))
+    plt.title("💼 Deal Size Distribution")
+    plt.ylabel("")
+    plt.show()
+    # 💬 The pie chart shows percentage contribution of small, medium, and large deals.
+
+# --- (E) Sales Trend by Year ---
+if 'YEAR_ID' in unified_data.columns:
+    plt.figure(figsize=(8,5))
+    sns.barplot(x="YEAR_ID", y="SALES", data=unified_data, estimator=sum, ci=None, palette="crest")
+    plt.title("📅 Total Sales by Year")
+    plt.xlabel("Year")
+    plt.ylabel("Total Sales")
+    plt.show()
+    # 💬 Helps identify which years performed best in terms of total sales.
+
+# --- (F) Sales Distribution by Deal Size (Box Plot) ---
+if 'DEALSIZE' in unified_data.columns:
+    plt.figure(figsize=(8,5))
+    sns.boxplot(x="DEALSIZE", y="SALES", data=unified_data, palette="flare")
+    plt.title("📦 Sales Distribution by Deal Size")
+    plt.show()
+    # 💬 Box plot shows median sales, variability, and presence of any remaining outliers.
+
+# -----------------------------
+# Step 10: Summary
+# -----------------------------
+print("\n✅ SUMMARY:")
+print("• Multiple sales datasets (CSV, Excel, JSON) loaded and merged.")
+print("• Missing values filled, duplicates removed, and outliers handled using IQR method.")
+print("• Data transformed into a unified format for analysis.")
+print("• Performed descriptive analysis and visualized total, average, and yearly sales.")
+print("• Insights drawn on top-performing products, countries, and deal sizes.")
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------------
+# Step 11: Viva Questions & Answers
+# -----------------------------
+"""
+🎓 Viva Q&A — SALES DATA INTEGRATION & ANALYSIS
+
+Q1. Why do we merge multiple data sources (CSV, Excel, JSON)?
+→ To combine scattered information into a single unified dataset for comprehensive analysis.
+
+Q2. Why did we remove outliers from 'SALES'?
+→ Outliers can distort mean and trend analysis. Using IQR ensures fair comparison across data points.
+
+Q3. What is IQR and how is it used for outlier detection?
+→ IQR (Interquartile Range) = Q3 - Q1. Any data point outside 1.5*IQR from Q1/Q3 is considered an outlier.
+
+Q4. What does the bar chart of Product Line vs Sales show?
+→ It shows which product categories generate the highest total or average revenue.
+
+Q5. What is the difference between sum and mean in aggregation?
+→ Sum shows total contribution, while mean shows average sales per order/category.
+
+Q6. Why use a box plot?
+→ Box plots visualize distribution, median, and detect outliers in numerical data.
+
+Q7. Why was the IQR method chosen over Z-score?
+→ Because IQR works better with skewed distributions like sales data which often isn’t normal.
+
+Q8. What insights can we gain from this analysis?
+→ Identify top-performing product lines, profitable regions, and patterns in sales over time.
+Q: What is a DataFrame?
+A: A two-dimensional data structure in pandas similar to a spreadsheet with rows and columns, allowing easy manipulation and analysis.
+
+
+Q: Why is visualization important in data analysis?
+A: Because visualizations make patterns and trends intuitive to interpret and communicate findings effectively.
+
+Q: What are the advantages of using seaborn over matplotlib?
+A: Seaborn provides better default aesthetics, built-in statistical aggregations, and simpler syntax for common plots.
+
+Q: What are descriptive statistics?
+A: Metrics that summarize data distribution such as mean, median, standard deviation, min, max, and quartiles.
+
+Q: Why do you remove duplicates?
+A: Duplicate records can bias results and inflate totals, giving incorrect analysis.
+
+Q: How did you handle missing categorical values vs numerical values?
+A: Categorical values were filled with placeholders like “Unknown” or “Not Available”, while numerical data could be filled using forward fill or mean imputation.
+
+Q: Why do you handle outliers?
+A: Outliers can distort statistical measures like mean and standard deviation, leading to misleading insights in sales analysis.
+
+Q: What is the IQR method?
+A: IQR (Interquartile Range) = Q3 - Q1. We remove points lying outside the range Q1 - 1.5×IQR and Q3 + 1.5×IQR to filter extreme outliers.
+
+Q: What is the difference between Q1, Q2, and Q3?
+A: Q1 is the 25th percentile, Q2 (median) is the 50th percentile, and Q3 is the 75th percentile of data.
+
+Q: Why not use Z-score for outlier detection?
+A: IQR is more robust for non-normally distributed data like sales figures, whereas Z-score assumes normality.
+
+🔹 Exploratory Data Analysis (EDA) Questions
+
+Q: What is EDA?
+A: Exploratory Data Analysis is the process of summarizing data characteristics using statistics and visualizations to understand its patterns, trends, and anomalies.
+"""

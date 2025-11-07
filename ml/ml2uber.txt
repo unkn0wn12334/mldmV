@@ -1,0 +1,228 @@
+# ================================================================
+# 🚖 UBER RIDE FARE PREDICTION — Regression Analysis with Comments
+# ================================================================
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+# NumPy, Pandas → for data manipulation
+# Matplotlib, Seaborn → for visualization
+# Scikit-learn → for preprocessing, modeling, and evaluation
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+
+# -----------------------------
+# Step 2: Load the Dataset
+# -----------------------------
+# Dataset columns: key, fare_amount, pickup_datetime, pickup_longitude, pickup_latitude,
+# dropoff_longitude, dropoff_latitude, passenger_count
+df = pd.read_csv("/content/uber.csv")
+
+print("✅ First 5 rows of dataset:")
+print(df.head(), "\n")
+
+print("Dataset Info:")
+print(df.info(), "\n")
+
+# -----------------------------
+# Step 3: Data Preprocessing
+# -----------------------------
+# Missing values and incorrect data can harm model performance.
+df.dropna(inplace=True)
+print("After removing null values:", df.shape)
+
+# Convert pickup_datetime to datetime format for feature extraction
+df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"], errors='coerce')
+
+# Extract time-based features from pickup_datetime (important for fare prediction)
+df["hour"] = df["pickup_datetime"].dt.hour
+df["day"] = df["pickup_datetime"].dt.day
+df["month"] = df["pickup_datetime"].dt.month
+df["year"] = df["pickup_datetime"].dt.year
+
+# Drop columns not needed for model training
+df.drop(["key", "pickup_datetime"], axis=1, inplace=True)
+
+# Remove negative or zero fare values
+df = df[df["fare_amount"] > 0]
+
+# Remove invalid passenger counts (only 1–6 are realistic)
+df = df[(df["passenger_count"] > 0) & (df["passenger_count"] <= 6)]
+
+# -----------------------------
+# Step 4: Identify and Handle Outliers
+# -----------------------------
+# Outliers in fare can mislead the model.
+plt.figure(figsize=(8,5))
+sns.boxplot(x=df["fare_amount"], color='orange')
+plt.title("Outlier Detection — Fare Amount")
+plt.show()
+# 💬 Boxplot shows extreme fare values (points outside whiskers) — possible outliers.
+
+# Remove extreme outliers using IQR method
+q1 = df["fare_amount"].quantile(0.25)
+q3 = df["fare_amount"].quantile(0.75)
+IQR = q3 - q1
+lower = q1 - 1.5 * IQR
+upper = q3 + 1.5 * IQR
+df = df[(df["fare_amount"] >= lower) & (df["fare_amount"] <= upper)]
+
+print("After outlier removal:", df.shape)
+
+# -----------------------------
+# Step 5: Correlation Analysis
+# -----------------------------
+# Correlation helps understand relationships between features and target.
+plt.figure(figsize=(10,7))
+sns.heatmap(df.corr(), annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("Correlation Heatmap between Features")
+plt.show()
+# 💬 High correlation with fare_amount → stronger predictor.
+# Example: Distance or longitude/latitude difference may correlate more with fare.
+
+# -----------------------------
+# Step 6: Feature and Target Split
+# -----------------------------
+# Separate input (X) and output (y)
+X = df.drop("fare_amount", axis=1)
+y = df["fare_amount"]
+
+# -----------------------------
+# Step 7: Split into Train and Test Sets
+# -----------------------------
+# 80% training data, 20% testing data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# -----------------------------
+# Step 8: Feature Scaling
+# -----------------------------
+# Scale features to have mean=0 and std=1 (important for regularized models like Ridge/Lasso)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# -----------------------------
+# Step 9: Implement Regression Models
+# -----------------------------
+# 1️⃣ Linear Regression: baseline model (no regularization)
+lr = LinearRegression()
+lr.fit(X_train_scaled, y_train)
+
+# 2️⃣ Ridge Regression: L2 regularization (controls large coefficients)
+ridge = Ridge(alpha=1.0)
+ridge.fit(X_train_scaled, y_train)
+
+# 3️⃣ Lasso Regression: L1 regularization (shrinks some coefficients to zero)
+lasso = Lasso(alpha=0.1)
+lasso.fit(X_train_scaled, y_train)
+
+# -----------------------------
+# Step 10: Model Evaluation
+# -----------------------------
+models = {
+    "Linear Regression": lr,
+    "Ridge Regression": ridge,
+    "Lasso Regression": lasso
+}
+
+results = []
+
+for name, model in models.items():
+    y_pred = model.predict(X_test_scaled)
+    r2 = r2_score(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    mae = mean_absolute_error(y_test, y_pred)
+    results.append([name, r2, rmse, mae])
+
+results_df = pd.DataFrame(results, columns=["Model", "R2 Score", "RMSE", "MAE"])
+print("✅ Model Evaluation Results:")
+print(results_df, "\n")
+
+# -----------------------------
+# Step 11: Compare Model Performance Visually
+# -----------------------------
+# Compare models based on R² and RMSE visually
+plt.figure(figsize=(8,5))
+sns.barplot(data=results_df, x="Model", y="R2 Score", palette="viridis")
+plt.title("Model Comparison based on R² Score (Higher is Better)")
+plt.show()
+# 💬 Higher R² means the model explains more variance in fare prediction.
+
+plt.figure(figsize=(8,5))
+sns.barplot(data=results_df, x="Model", y="RMSE", palette="magma")
+plt.title("Model Comparison based on RMSE (Lower is Better)")
+plt.show()
+# 💬 RMSE measures average prediction error magnitude.
+
+# -----------------------------
+# Step 12: Plot Actual vs Predicted (Best Model)
+# -----------------------------
+best_model = lr  # Linear Regression usually performs best on simple data
+y_pred_best = best_model.predict(X_test_scaled)
+
+plt.figure(figsize=(6,6))
+sns.scatterplot(x=y_test, y=y_pred_best, alpha=0.6)
+plt.xlabel("Actual Fare")
+plt.ylabel("Predicted Fare")
+plt.title("Actual vs Predicted Fare Amount (Linear Regression)")
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.show()
+# 💬 If points lie close to the diagonal line → good model fit.
+
+# -----------------------------
+# Step 13: Summary & Observations
+# -----------------------------
+# ✅ R² Score → Goodness of fit (closer to 1 = better)
+# ✅ RMSE & MAE → Error metrics (lower = better)
+# ✅ Linear Regression gives baseline performance.
+# ✅ Ridge handles multicollinearity well.
+# ✅ Lasso performs automatic feature selection (some coefficients become zero).
+# ✅ Visualization helps compare and interpret model performance.
+
+# ================================================================
+# 🎓 VIVA / CROSS QUESTIONS (with short oral-style answers)
+# ================================================================
+
+# Q1️⃣ What is regression?
+# ➤ Regression is a supervised ML technique used to predict continuous values (like price, fare, temperature).
+
+# Q2️⃣ What is the difference between Linear, Ridge, and Lasso Regression?
+# ➤ Linear → simple line fit
+# ➤ Ridge → adds L2 penalty to reduce overfitting
+# ➤ Lasso → adds L1 penalty, can eliminate less important features
+
+# Q3️⃣ What is R² Score?
+# ➤ It measures how well predictions approximate real data (1 means perfect fit).
+
+# Q4️⃣ What is RMSE and MAE?
+# ➤ RMSE = root mean square error (penalizes large errors more)
+# ➤ MAE = mean absolute error (average magnitude of errors)
+
+# Q5️⃣ Why do we use feature scaling?
+# ➤ To make all features comparable in magnitude — necessary for algorithms that depend on distance or coefficients.
+
+# Q6️⃣ Why remove outliers?
+# ➤ Outliers distort model training and increase prediction error.
+
+# Q7️⃣ Why split dataset into train and test?
+# ➤ To check model generalization — ensures performance on unseen data.
+
+# Q8️⃣ What does the scatter plot (Actual vs Predicted) represent?
+# ➤ It shows how close predicted fares are to actual fares.
+#   Closer to the diagonal line → better accuracy.
+
+# Q9️⃣ When do we prefer Ridge over Lasso?
+# ➤ When all features are important and we just want to reduce coefficient size, not eliminate them.
+
+# Q🔟 What happens if we don’t scale the features?
+# ➤ Features with large numeric ranges dominate model learning, leading to bias.
+
+# ================================================================
+# ✅ END OF EXPERIMENT — UBER FARE PREDICTION
+# ================================================================

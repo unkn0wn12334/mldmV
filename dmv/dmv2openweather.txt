@@ -1,0 +1,251 @@
+# ================================================================
+# 🌦️ WEATHER DATA ANALYSIS USING OPENWEATHERMAP API
+# ================================================================
+# Experiment: Interacting with Web APIs
+# Subject Code: 417525 | Subject: COMPUTER LABORATORY-I (Data Modeling & Visualization)
+# ================================================================
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+import requests                   # For sending HTTP requests to the API
+import pandas as pd                # For data manipulation and analysis
+import matplotlib.pyplot as plt    # For creating visual plots
+import seaborn as sns              # For enhanced visualization styling
+import datetime as dt              # For handling and formatting timestamps
+import warnings
+warnings.filterwarnings('ignore')
+
+# -----------------------------
+# Step 2: Connect to OpenWeatherMap API
+# -----------------------------
+API_KEY = "c97ce3f14be7bcf7b544743c2fc6056c"   # Replace with your valid API key
+city = "Pune"                                   # Change city name as needed
+
+# OpenWeatherMap 5-day/3-hour forecast API endpoint
+url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={API_KEY}&units=metric"
+
+# Send the API request
+response = requests.get(url)
+
+# -----------------------------
+# Step 3: Check API Response
+# -----------------------------
+if response.status_code == 200:
+    data = response.json()
+    print("✅ Data successfully fetched from OpenWeatherMap API.")
+else:
+    print("❌ Failed to fetch data. HTTP Status Code:", response.status_code)
+
+# -----------------------------
+# Step 4: Extract Relevant Weather Information
+# -----------------------------
+# The 'list' key contains 5-day forecast in 3-hour intervals.
+weather_list = data['list']
+
+records = []  # To store each record (time-wise forecast)
+
+# Extract selected attributes from the nested JSON response
+for record in weather_list:
+    main = record['main']
+    wind = record['wind']
+    weather = record['weather'][0]
+    date_time = dt.datetime.fromtimestamp(record['dt'])  # Convert UNIX timestamp → readable datetime
+    
+    records.append({
+        'DateTime': date_time,
+        'Temperature (°C)': main['temp'],
+        'Feels Like (°C)': main['feels_like'],
+        'Min Temp (°C)': main['temp_min'],
+        'Max Temp (°C)': main['temp_max'],
+        'Pressure (hPa)': main['pressure'],
+        'Humidity (%)': main['humidity'],
+        'Wind Speed (m/s)': wind['speed'],
+        'Weather': weather['main']
+    })
+
+# Convert extracted list of dictionaries into a Pandas DataFrame
+df = pd.DataFrame(records)
+
+# -----------------------------
+# Step 5: Data Cleaning
+# -----------------------------
+print("\n🔍 Checking for Missing Values:")
+print(df.isnull().sum())
+
+# Remove duplicates (if any)
+df.drop_duplicates(inplace=True)
+
+# Sort data chronologically (by DateTime)
+df.sort_values('DateTime', inplace=True)
+
+# -----------------------------
+# Step 6: Basic Exploration
+# -----------------------------
+print("\n📊 Dataset Preview:")
+print(df.head())
+
+print("\n📈 Summary Statistics:")
+print(df.describe())
+
+# -----------------------------
+# Step 7: Data Visualization
+# -----------------------------
+plt.style.use('seaborn-v0_8-darkgrid')
+sns.set_palette("viridis")
+
+# 1️⃣ TEMPERATURE & HUMIDITY TREND OVER TIME
+# → Helps visualize how temperature and humidity vary throughout the forecast period.
+plt.figure(figsize=(12,6))
+plt.plot(df['DateTime'], df['Temperature (°C)'], label='Temperature (°C)', color='orange')
+plt.plot(df['DateTime'], df['Humidity (%)'], label='Humidity (%)', color='blue')
+plt.xlabel('Date & Time')
+plt.ylabel('Value')
+plt.title(f"🌡️ Temperature and 💧 Humidity Trends in {city}")
+plt.legend()
+plt.show()
+
+# 2️⃣ WIND SPEED TREND OVER TIME
+# → Shows variations in wind speed over the 5-day forecast period.
+plt.figure(figsize=(12,6))
+plt.plot(df['DateTime'], df['Wind Speed (m/s)'], color='green')
+plt.xlabel('Date & Time')
+plt.ylabel('Wind Speed (m/s)')
+plt.title(f"🌬️ Wind Speed Trend in {city}")
+plt.show()
+
+# 3️⃣ TEMPERATURE DISTRIBUTION (BOX PLOT)
+# → Visualizes temperature spread, median, and detects extreme values (outliers).
+plt.figure(figsize=(8,5))
+sns.boxplot(y=df['Temperature (°C)'], color='salmon')
+plt.title(f"📦 Temperature Distribution in {city}")
+plt.ylabel('Temperature (°C)')
+plt.show()
+
+# 4️⃣ AVERAGE DAILY TEMPERATURE (BAR PLOT)
+# → Shows average temperature for each day to observe day-to-day variation.
+df['Date'] = df['DateTime'].dt.date
+daily_avg = df.groupby('Date')['Temperature (°C)'].mean().reset_index()
+
+plt.figure(figsize=(10,5))
+sns.barplot(x='Date', y='Temperature (°C)', data=daily_avg, color='skyblue')
+plt.title(f"📅 Average Daily Temperature in {city}")
+plt.xlabel('Date')
+plt.ylabel('Average Temperature (°C)')
+plt.xticks(rotation=45)
+plt.show()
+
+# 5️⃣ CORRELATION HEATMAP
+# → Examines relationships between numeric variables (temp, humidity, pressure, wind speed).
+plt.figure(figsize=(8,6))
+sns.heatmap(df[['Temperature (°C)','Humidity (%)','Pressure (hPa)','Wind Speed (m/s)']].corr(), 
+            annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("🔗 Correlation Between Weather Attributes")
+plt.show()
+
+# 6️⃣ FREQUENCY OF WEATHER CONDITIONS (BAR PLOT)
+# → Displays how often each weather condition (Clear, Clouds, Rain, etc.) occurs in forecast.
+plt.figure(figsize=(8,5))
+sns.countplot(x='Weather', data=df, palette='pastel')
+plt.title(f"🌤️ Frequency of Weather Conditions in {city}")
+plt.xlabel('Weather Type')
+plt.ylabel('Count')
+plt.show()
+
+# -----------------------------
+# Step 8: Insights & Summary
+# -----------------------------
+print("\n🌍 WEATHER INSIGHTS SUMMARY:")
+print(f"Highest Temperature Recorded: {df['Temperature (°C)'].max():.2f}°C")
+print(f"Lowest Temperature Recorded: {df['Temperature (°C)'].min():.2f}°C")
+print(f"Average Temperature: {df['Temperature (°C)'].mean():.2f}°C")
+print(f"Average Humidity: {df['Humidity (%)'].mean():.2f}%")
+print(f"Most Frequent Weather Condition: {df['Weather'].mode()[0]}")
+
+# ------------------------------------------------------------
+# 🌟 Viva Questions & Answers (for practical exam preparation)
+# ------------------------------------------------------------
+"""
+🎓 VIVA Q&A — WEATHER DATA ANALYSIS USING WEB API
+
+Q1. What is an API?
+→ API stands for Application Programming Interface. It allows two systems to communicate 
+  and exchange data programmatically over the web.
+
+Q2. What is the OpenWeatherMap API used for?
+→ It provides real-time and forecast weather data (temperature, humidity, wind, etc.)
+  for any city worldwide through HTTP requests.
+
+Q3. What is the difference between 'current weather' and 'forecast' APIs?
+→ The 'current weather' API gives live data, while the 'forecast' API provides
+  predicted weather conditions for the upcoming days (e.g., 5-day / 3-hour intervals).
+
+Q4. Why do we use JSON format here?
+→ APIs usually return JSON because it is lightweight, human-readable, 
+  and easy to parse in Python using `response.json()`.
+
+Q5. Why do we convert UNIX timestamps to readable datetime?
+→ API data uses UNIX time (seconds since 1970). We convert it into 
+  human-readable format using `datetime.fromtimestamp()` for visualization.
+
+Q6. What insights can be derived from correlation heatmap?
+→ It helps identify how temperature relates to humidity, wind speed, and pressure — 
+  e.g., higher temperature often correlates with lower humidity.
+
+Q7. What does a box plot tell us about temperature?
+→ It shows the spread, median, and outliers in temperature data over time.
+
+Q8. How can this project be extended?
+→ Add real-time alerts for extreme weather, plot multiple cities for comparison, 
+  or integrate machine learning for temperature prediction.
+
+Q9. Why is data visualization important here?
+→ Visuals like line charts, bar plots, and heatmaps make patterns and trends 
+  in weather data easy to understand and explain.
+
+Q10. What are possible causes of API failure?
+→ Invalid API key, wrong endpoint URL, internet issues, or exceeding 
+  the request limit (free accounts have a limit).
+Q: Why did you plot both temperature and humidity on the same graph?
+A: To compare how temperature and humidity change together over time — usually, as temperature increases, humidity decreases (inverse relation).
+
+Q: Why did you use line plots for time-based data?
+A: Line plots are ideal for continuous data across time, showing trends and fluctuations clearly.
+
+Q: What does the wind speed plot show?
+A: It shows variation in wind intensity — you can identify calm and windy periods during the forecast window.
+
+Q: Why use a box plot for temperature?
+A: To visualize data distribution — median, quartiles, and detect potential outliers or sudden spikes in temperature.
+
+Q: What does the daily average temperature bar chart represent?
+A: It summarizes each day’s overall temperature pattern, making it easy to compare how warm or cool different days are.
+
+Q: What is a correlation heatmap?
+A: It shows the strength of relationships between numerical variables (e.g., temperature vs. humidity). High negative correlation means when one increases, the other decreases.
+
+Q: Why did you use a count plot for weather conditions?
+A: To show the frequency of different conditions like ‘Clear’, ‘Clouds’, ‘Rain’. It helps us understand which type of weather dominates.
+
+🧮 4️⃣ Analytical / Statistical Questions
+
+Q: What does df.describe() tell you?
+A: It gives summary statistics like mean, min, max, and standard deviation for numeric columns, helping to understand the spread of data.
+
+Q: Why did you calculate average daily temperature?
+A: To summarize 3-hour interval readings into daily trends — easier to analyze patterns or compare days.
+
+Q: What is correlation?
+A: It measures the relationship between two variables. A value close to +1 means direct relation; -1 means inverse relation.
+
+Q: What insight did you gain from the correlation heatmap?
+A: Typically, temperature and humidity have a negative correlation (when temperature increases, humidity drops), while pressure might have mild correlation with both.
+
+------------------------------------------------------------
+✅ SUMMARY:
+• Collected weather data using OpenWeatherMap API (Web-based JSON source)
+• Cleaned, organized, and analyzed the data in Python using Pandas
+• Created multiple visualizations for temperature, humidity, wind, and conditions
+• Derived insights and prepared for viva explanations on each visualization
+------------------------------------------------------------
+"""

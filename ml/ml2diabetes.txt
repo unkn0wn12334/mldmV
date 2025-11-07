@@ -1,0 +1,224 @@
+# ==============================================================
+# 💉 Diabetes Dataset Analysis (Final Corrected Version)
+# ==============================================================
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix, classification_report
+
+# ==============================================================
+# Step 1️⃣: Load Dataset
+# ==============================================================
+df = pd.read_csv("diabetes.csv")   # make sure your file is in current working directory
+print("✅ Dataset Loaded Successfully!")
+display(df.head())
+
+# ==============================================================
+# Step 2️⃣: Basic Info & Missing Values
+# ==============================================================
+print("\n📊 Dataset Info:")
+print(df.info())
+
+print("\n🔍 Missing Values:")
+print(df.isnull().sum())
+
+# ==============================================================
+# Step 3️⃣: Univariate Analysis
+# ==============================================================
+print("\n📈 Univariate Analysis — Descriptive Statistics:")
+display(df.describe())
+
+# Additional metrics
+for col in df.select_dtypes(include=np.number).columns:
+    print(f"\nColumn: {col}")
+    print(f"Mean: {df[col].mean():.2f}")
+    print(f"Median: {df[col].median():.2f}")
+    print(f"Mode: {df[col].mode()[0]:.2f}")
+    print(f"Variance: {df[col].var():.2f}")
+    print(f"Std Dev: {df[col].std():.2f}")
+    print(f"Skewness: {df[col].skew():.2f}")
+    print(f"Kurtosis: {df[col].kurt():.2f}")
+
+# Histogram
+df.hist(figsize=(12, 10), bins=20, color='skyblue', edgecolor='black')
+plt.suptitle("Histogram of All Features", fontsize=14)
+plt.show()
+
+# ==============================================================
+# Step 4️⃣: Correlation Heatmap
+# ==============================================================
+plt.figure(figsize=(10,8))
+sns.heatmap(df.corr(), annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5)
+plt.title("🔗 Correlation Heatmap of Diabetes Dataset", fontsize=14)
+plt.show()
+
+# ==============================================================
+# Step 5️⃣: Bivariate Analysis (Example)
+# ==============================================================
+plt.figure(figsize=(6,5))
+sns.regplot(x='BMI', y='Glucose', data=df, color='teal')
+plt.title("Bivariate Relationship: BMI vs Glucose")
+plt.xlabel("BMI")
+plt.ylabel("Glucose")
+plt.show()
+
+# ==============================================================
+# Step 6️⃣: LINEAR REGRESSION
+# ==============================================================
+# Predicting Glucose (continuous target)
+X_lin = df.drop('Glucose', axis=1)
+y_lin = df['Glucose']
+
+X_lin_train, X_lin_test, y_lin_train, y_lin_test = train_test_split(X_lin, y_lin, test_size=0.2, random_state=42)
+
+lin_reg = LinearRegression()
+lin_reg.fit(X_lin_train, y_lin_train)
+
+y_lin_pred = lin_reg.predict(X_lin_test)
+
+print("\n📈 Linear Regression Results:")
+print("Mean Squared Error:", mean_squared_error(y_lin_test, y_lin_pred))
+print("R² Score:", r2_score(y_lin_test, y_lin_pred))
+
+plt.figure(figsize=(6,5))
+plt.scatter(y_lin_test, y_lin_pred, color='purple')
+plt.title("Actual vs Predicted Glucose (Linear Regression)")
+plt.xlabel("Actual Glucose")
+plt.ylabel("Predicted Glucose")
+plt.grid(True)
+plt.show()
+
+# ==============================================================
+# Step 7️⃣: LOGISTIC REGRESSION
+# ==============================================================
+# Predicting Outcome (binary target)
+X_log = df.drop('Outcome', axis=1)
+y_log = df['Outcome']
+
+X_log_train, X_log_test, y_log_train, y_log_test = train_test_split(X_log, y_log, test_size=0.2, random_state=42)
+
+log_reg = LogisticRegression(max_iter=200)
+log_reg.fit(X_log_train, y_log_train)
+
+y_log_pred = log_reg.predict(X_log_test)
+
+print("\n📉 Logistic Regression Results:")
+print("Accuracy:", accuracy_score(y_log_test, y_log_pred))
+
+# Confusion Matrix
+cm = confusion_matrix(y_log_test, y_log_pred)
+plt.figure(figsize=(5,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Non-Diabetic','Diabetic'],
+            yticklabels=['Non-Diabetic','Diabetic'])
+plt.title("Confusion Matrix - Logistic Regression")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+print("\nClassification Report:")
+print(classification_report(y_log_test, y_log_pred))
+
+# ==============================================================
+# Step 8️⃣: MULTIPLE REGRESSION
+# ==============================================================
+# Predicting Glucose using multiple variables
+X_multi = df[['BMI', 'Insulin', 'Age', 'BloodPressure']]
+y_multi = df['Glucose']
+
+X_multi_train, X_multi_test, y_multi_train, y_multi_test = train_test_split(X_multi, y_multi, test_size=0.2, random_state=42)
+
+multi_reg = LinearRegression()
+multi_reg.fit(X_multi_train, y_multi_train)
+
+y_multi_pred = multi_reg.predict(X_multi_test)
+
+print("\n📊 Multiple Regression Results:")
+print("MSE:", mean_squared_error(y_multi_test, y_multi_pred))
+print("R² Score:", r2_score(y_multi_test, y_multi_pred))
+
+# Residual plot
+plt.figure(figsize=(6,5))
+sns.residplot(x=y_multi_test, y=y_multi_pred, lowess=True, color='red')
+plt.title("Residual Plot - Multiple Regression")
+plt.xlabel("Actual Values")
+plt.ylabel("Residuals")
+plt.grid(True)
+plt.show()
+
+# ==============================================================
+# Step 9️⃣: COMPARISON OF MODELS (Fixed)
+# ==============================================================
+print("\n📋 Comparison of Model Performances:")
+print(f"Linear Regression R² Score: {r2_score(y_lin_test, y_lin_pred):.3f}")
+print(f"Multiple Regression R² Score: {r2_score(y_multi_test, y_multi_pred):.3f}")
+print(f"Logistic Regression Accuracy: {accuracy_score(y_log_test, y_log_pred):.3f}")
+
+print("\n✅ Conclusion:")
+print("• Linear & Multiple Regression are used for predicting continuous values like Glucose.")
+print("• Logistic Regression is used for binary classification (Diabetic or Non-Diabetic).")
+print("• Multiple regression improves accuracy slightly when related predictors are used.")
+print("• Correlation heatmap shows Glucose has high correlation with BMI, Insulin, and Age.")
+
+
+
+#viva
+| Section                 | Explanation                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Univariate Analysis** | Shows mean, median, mode, variance, skewness, and kurtosis — helps understand data distribution.                         |
+| **Bivariate Analysis**  | Studies relationship between two variables (e.g., BMI vs Glucose) — visualized using scatter plots and regression lines. |
+| **Linear Regression**   | Predicts a continuous numeric output (Glucose). Evaluated using R² and MSE.                                              |
+| **Logistic Regression** | Classifies binary outcome (Diabetic/Non-Diabetic). Evaluated using accuracy and confusion matrix.                        |
+| **Multiple Regression** | Predicts a continuous target using multiple independent variables together.                                              |
+| **Correlation Heatmap** | Visual tool showing strength and direction of relationships between variables.                                           |
+| **Comparison**          | Linear/Multiple Regression → Regression task, Logistic → Classification task.                                            |
+
+regression
+| Metric                                      | Formula                                        | Meaning                                                                    |
+| ------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
+| **Mean Squared Error (MSE)**                | ( MSE = \frac{1}{n} \sum (y_i - \hat{y_i})^2 ) | Measures average squared difference between actual and predicted values.   |
+| **Root Mean Squared Error (RMSE)**          | ( RMSE = \sqrt{MSE} )                          | Gives error in same units as Y.                                            |
+| **R² Score (Coefficient of Determination)** | ( R^2 = 1 - \frac{SS_{res}}{SS_{tot}} )        | Measures how much variance in Y is explained by X. Higher R² = better fit. |
+
+
+classification
+| Metric                   | Formula                                                         | Meaning                                                  |
+| ------------------------ | --------------------------------------------------------------- | -------------------------------------------------------- |
+| **Accuracy**             | ( \frac{TP + TN}{TP + TN + FP + FN} )                           | Proportion of correctly predicted samples.               |
+| **Precision**            | ( \frac{TP}{TP + FP} )                                          | Of predicted positives, how many were correct.           |
+| **Recall (Sensitivity)** | ( \frac{TP}{TP + FN} )                                          | Of actual positives, how many were identified correctly 
+												OR many actual positives IT MISSIED
+| **F1 Score**             | ( 2 \times \frac{Precision \times Recall}{Precision + Recall} ) | Balance between Precision and Recall.                    |
+
+
+LINEAR REGRESSION
+| **Concept**        | **Explanation**                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Definition**     | A supervised learning model that finds the best straight line (y = mX + c) fitting the data.                         |
+| **Purpose**        | To predict a continuous dependent variable (e.g., Glucose) using one or more independent variables (e.g., BMI, Age). |
+| **Equation**       | ( y = b_0 + b_1x_1 + b_2x_2 + ... + b_nx_n + \epsilon )                                                              |
+| **Goal**           | Minimize error (difference between actual and predicted values).                                                     |
+| **Error term (ε)** | Represents noise — difference between true and predicted Y.                                                          |
+
+
+MULTIPLE REGRESSION
+| **Concept**         | **Explanation**                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Definition**      | Extension of linear regression with **more than one independent variable**.                              |
+| **Equation**        | ( y = b_0 + b_1x_1 + b_2x_2 + ... + b_nx_n )                                                             |
+| **Goal**            | To predict a continuous target using several predictors (e.g., predict Glucose using BMI, Insulin, Age). |
+| **Why “Multiple”?** | Because it includes multiple predictors that together improve prediction accuracy.                       |
+
+
+LOGISTIC REGRESSION
+| **Concept**          | **Explanation**                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Definition**       | A classification algorithm that predicts **categorical outcomes (0 or 1)** using a logistic (sigmoid) function. |
+| **Purpose**          | Used when the dependent variable is **binary** (e.g., Diabetic vs Non-Diabetic).                                |
+| **Equation**         | ( P(Y=1) = \frac{1}{1 + e^{-(b_0 + b_1x_1 + b_2x_2 + ... + b_nx_n)}} )                                          |
+| **Sigmoid Function** | Converts linear equation output into probability between 0 and 1.                                               |

@@ -1,0 +1,201 @@
+# 📘 Real Estate Market Data Wrangling and Visualization
+# Dataset: RealEstate_Prices.csv
+# -----------------------------------------------------------
+# 🎯 Objective: Perform data cleaning, preprocessing, aggregation, and visualization
+# to understand real estate price trends and relationships between variables.
+# -----------------------------------------------------------
+
+# ---------------------------------------
+# 1️⃣ Import necessary libraries
+# ---------------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Ensures that all plots are shown inline in notebook (for Colab or Jupyter)
+%matplotlib inline
+
+# ---------------------------------------
+# 2️⃣ Load dataset
+# ---------------------------------------
+df = pd.read_csv("/content/Bengaluru_House_Data.csv")
+
+print("✅ First 5 rows of the dataset:")
+print(df.head())
+
+# ---------------------------------------
+# 3️⃣ Clean column names
+# ---------------------------------------
+# ➤ Reason: Column names often contain spaces or symbols which can cause errors later.
+df.columns = (
+    df.columns.str.strip()                # Remove extra spaces
+              .str.lower()                # Convert to lowercase
+              .str.replace(' ', '_')      # Replace spaces with underscores
+              .str.replace('[^a-zA-Z0-9_]', '', regex=True)  # Remove special chars
+)
+print("\n✅ Cleaned column names:")
+print(df.columns)
+
+# ---------------------------------------
+# 4️⃣ Check for missing values
+# ---------------------------------------
+# ➤ Reason: Missing values can affect calculations and ML models.
+print("\n✅ Missing values in each column:")
+print(df.isnull().sum())
+
+# ➤ Handle missing values:
+# - Numeric columns: replace with median (robust against outliers)
+# - Categorical columns: replace with mode (most frequent value)
+num_cols = df.select_dtypes(include=['float64', 'int64']).columns
+df[num_cols] = df[num_cols].fillna(df[num_cols].median())
+
+cat_cols = df.select_dtypes(include=['object']).columns
+df[cat_cols] = df[cat_cols].fillna(df[cat_cols].mode().iloc[0])
+
+print("\n✅ Missing values handled successfully!")
+
+# ---------------------------------------
+# 5️⃣ Remove duplicate records
+# ---------------------------------------
+print(f"\nDuplicates before removal: {df.duplicated().sum()}")
+df.drop_duplicates(inplace=True)
+print(f"✅ Duplicates after removal: {df.duplicated().sum()}")
+
+# ---------------------------------------
+# 6️⃣ Handle inconsistent data
+# ---------------------------------------
+# ➤ Example: Sometimes text columns like "location" or "area_type"
+# have inconsistent capitalization or spacing.
+df['location'] = df['location'].str.strip().str.title()
+df['area_type'] = df['area_type'].str.strip().str.title()
+
+# ---------------------------------------
+# 7️⃣ Convert data types
+# ---------------------------------------
+# ➤ Convert 'total_sqft' from string (can have ranges like "1000-1200") to numeric.
+
+def convert_sqft(value):
+    try:
+        if '-' in value:
+            nums = value.split('-')
+            return (float(nums[0]) + float(nums[1])) / 2  # Take average of range
+        return float(value)
+    except:
+        return np.nan
+
+df['total_sqft'] = df['total_sqft'].astype(str).apply(convert_sqft)
+df['total_sqft'] = df['total_sqft'].fillna(df['total_sqft'].median())
+
+# ---------------------------------------
+# 8️⃣ Handle outliers (IQR Method)
+# ---------------------------------------
+# ➤ Outliers can distort analysis. Using IQR removes extreme values.
+numeric_features = ['total_sqft', 'bath', 'balcony', 'price']
+for feature in numeric_features:
+    Q1 = df[feature].quantile(0.25)
+    Q3 = df[feature].quantile(0.75)
+    IQR = Q3 - Q1
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+    df = df[(df[feature] >= lower) & (df[feature] <= upper)]
+
+print("\n✅ Outliers handled using IQR method.")
+
+# ---------------------------------------
+# 9️⃣ Encode categorical columns
+# ---------------------------------------
+# ➤ Convert categorical text data into numbers for analysis or ML models.
+from sklearn.preprocessing import LabelEncoder
+
+label_encoder = LabelEncoder()
+for col in ['area_type', 'location', 'society']:
+    df[col] = label_encoder.fit_transform(df[col])
+
+print("\n✅ Categorical columns encoded successfully!")
+
+# ---------------------------------------
+# 🔟 Data Aggregation and Summary
+# ---------------------------------------
+# ➤ Grouping data to find insights, e.g., top locations by average price.
+avg_price_by_location = df.groupby('location')['price'].mean().sort_values(ascending=False).head(10)
+print("\n🏠 Top 10 Locations by Average Price:")
+print(avg_price_by_location)
+
+# ---------------------------------------
+# 🔹 VISUALIZATION SECTION 🔹
+# ---------------------------------------
+
+# ---------------------------------------
+# 📊 1. Distribution of House Prices
+# ---------------------------------------
+plt.figure(figsize=(8,5))
+sns.histplot(df['price'], bins=30, kde=True)
+plt.title("🏡 Distribution of House Prices (Shows skewness and price spread)")
+plt.xlabel("Price (Lakhs)")
+plt.ylabel("Frequency")
+plt.show()
+# 💬 This plot helps understand how house prices are distributed across the dataset
+# (e.g., whether prices are skewed or normally distributed).
+
+# ---------------------------------------
+# 🔗 2. Correlation Heatmap
+# ---------------------------------------
+numeric_df = df.select_dtypes(include=['number'])
+plt.figure(figsize=(8,5))
+sns.heatmap(numeric_df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("🔗 Correlation between Numerical Features (Filtered Numeric Columns Only)")
+plt.show()
+# 💬 The heatmap shows how numerical features are related.
+# High correlation (closer to 1 or -1) means strong linear relationship.
+
+# ---------------------------------------
+# 🏘️ 3. Average Price by Area Type
+# ---------------------------------------
+plt.figure(figsize=(6,4))
+sns.barplot(x='area_type', y='price', data=df)
+plt.title("🏘️ Average Price by Area Type (Helps identify which area type is costlier)")
+plt.xlabel("Area Type")
+plt.ylabel("Average Price (Lakhs)")
+plt.show()
+# 💬 This helps compare which area type (e.g., Built-up, Super built-up, Plot) is more expensive.
+
+# ---------------------------------------
+# 📈 4. Relationship between Total Sqft and Price
+# ---------------------------------------
+plt.figure(figsize=(7,5))
+sns.scatterplot(x='total_sqft', y='price', hue='bath', data=df)
+plt.title("📈 Relationship between Total Sqft and Price (Color shows no. of bathrooms)")
+plt.xlabel("Total Sqft")
+plt.ylabel("Price (Lakhs)")
+plt.show()
+# 💬 Each point is a house. Larger area and more bathrooms generally correspond to higher prices.
+
+# ---------------------------------------
+# 🏙️ 5. Top 10 Expensive Locations
+# ---------------------------------------
+plt.figure(figsize=(10,6))
+avg_price_by_location.plot(kind='bar', color='orange')
+plt.title("🏙️ Top 10 Expensive Locations (Based on Avg Price)")
+plt.xlabel("Location")
+plt.ylabel("Average Price (Lakhs)")
+plt.xticks(rotation=45)
+plt.show()
+# 💬 This bar chart clearly shows which locations in Bengaluru have the highest average house prices.
+
+# ---------------------------------------
+# 🔹 11️⃣ Export Cleaned Dataset
+# ---------------------------------------
+df.to_csv("Cleaned_RealEstate_Prices.csv", index=False)
+print("\n✅ Cleaned dataset exported successfully as 'Cleaned_RealEstate_Prices.csv'.")
+#Question	Answer (Short & Clear)
+#1. What is data wrangling?	It is the process of cleaning, transforming, and preparing raw data into a structured format for analysis.
+#2. Why do we handle missing values?	Because missing values can cause incorrect analysis or model errors. We replace them with mean/median/mode.
+#3. What is IQR and why used?	IQR (Interquartile Range) = Q3 - Q1. It’s used to detect and remove outliers beyond 1.5×IQR limits.
+#4. What does Label Encoding do?	Converts categorical text labels into numeric codes (e.g., “Yes” → 1, “No” → 0).
+#5. What is correlation?	Correlation measures how strongly two numerical variables are related.
+#6. Why do we use scatter plots?	To visualize relationships between two continuous variables (like price vs area).
+#7. What does the heatmap represent?	It shows the strength of relationships (correlations) between numerical variables using colors.
+#8. Why remove duplicates?	To avoid redundancy and ensure accurate analysis.
+#9. What does “encoding categorical columns” mean?	It converts string-based categories into numerical values to make them usable by models.
+#10. What is the significance of this practical?	It teaches complete data cleaning, wrangling, and visualization workflow for real-world datasets.

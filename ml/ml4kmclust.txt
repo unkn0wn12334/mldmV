@@ -1,0 +1,187 @@
+# ================================================================
+# 🌼 IRIS DATASET — K-MEANS CLUSTERING with ELBOW METHOD + PCA Visualization
+# ================================================================
+# This program demonstrates how to apply K-Means Clustering on the Iris dataset,
+# find the optimal number of clusters using the Elbow method,
+# and visualize the results using PCA (Principal Component Analysis).
+# ---------------------------------------------------------------
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.datasets import load_iris
+
+# 💡 VIVA QUESTION:
+# Q1. Why do we import StandardScaler before applying K-Means?
+# A1. Because K-Means is distance-based (Euclidean), and unscaled features with large values
+#     dominate smaller ones. Standardization ensures equal contribution from all features.
+
+# -----------------------------
+# Step 2: Load the Dataset
+# -----------------------------
+# You can also load it using: df = pd.read_csv("Iris.csv")
+
+iris = load_iris()   # loads dataset from sklearn
+df = pd.DataFrame(iris.data, columns=iris.feature_names)  # feature columns
+df['Species'] = iris.target  # actual class labels (0,1,2)
+
+print("✅ First 5 rows of dataset:")
+print(df.head(), "\n")
+
+print("Dataset Info:")
+print(df.info(), "\n")
+
+# 💡 VIVA QUESTIONS:
+# Q2. What are the target classes in the Iris dataset?
+# A2. 0 = Setosa, 1 = Versicolor, 2 = Virginica.
+# Q3. How many features does the Iris dataset have?
+# A3. Four features — sepal length, sepal width, petal length, and petal width.
+
+# -----------------------------
+# Step 3: Preprocessing
+# -----------------------------
+# Extract only the numerical feature columns (ignore labels)
+X = df.iloc[:, :-1].values
+
+# Standardize the features to have mean=0 and variance=1
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print("✅ Data scaled successfully.\n")
+
+# 💡 VIVA QUESTIONS:
+# Q4. What is StandardScaler doing internally?
+# A4. It transforms data as (x - mean) / std_dev for each feature.
+# Q5. Why is scaling necessary before PCA or K-Means?
+# A5. Because both rely on Euclidean distance, and large-scale features distort the results.
+
+# -----------------------------
+# Step 4: Elbow Method to Find Optimal K
+# -----------------------------
+wcss = []  # WCSS = Within Cluster Sum of Squares
+
+for k in range(1, 11):  # Try K values from 1 to 10
+    kmeans = KMeans(n_clusters=k, init='k-means++', random_state=42)
+    kmeans.fit(X_scaled)
+    wcss.append(kmeans.inertia_)  # inertia_ gives total WCSS
+
+# Plot the elbow curve
+plt.figure(figsize=(8,5))
+plt.plot(range(1, 11), wcss, marker='o', linestyle='--', color='b')
+plt.title("Elbow Method — Optimal Number of Clusters (k)")
+plt.xlabel("Number of Clusters (k)")
+plt.ylabel("WCSS (Within-Cluster Sum of Squares)")
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.show()
+
+# 📊 This plot shows how WCSS decreases with increasing k.
+# The "elbow point" (where the curve bends) suggests the optimal number of clusters (usually k=3 for Iris).
+
+print("📉 The 'elbow point' in the graph shows the optimal number of clusters (around k=3).")
+
+# 💡 VIVA QUESTIONS:
+# Q6. What is WCSS in K-Means?
+# A6. It’s the sum of squared distances between each point and its cluster centroid.
+# Q7. What is the Elbow method used for?
+# A7. To find the optimal number of clusters by identifying the point of diminishing returns in WCSS.
+
+# -----------------------------
+# Step 5: Apply K-Means with Optimal K
+# -----------------------------
+kmeans = KMeans(n_clusters=3, init='k-means++', random_state=42)
+y_kmeans = kmeans.fit_predict(X_scaled)  # Predict cluster for each sample
+
+# Add cluster column to dataset
+df['Cluster'] = y_kmeans
+
+print("\n✅ K-Means Clustering Completed.")
+print(df.head())
+
+# 💡 VIVA QUESTIONS:
+# Q8. What does 'init=k-means++' mean?
+# A8. It’s a smart centroid initialization technique that helps speed up convergence and improves results.
+# Q9. What is the output of kmeans.fit_predict()?
+# A9. It returns the cluster label (0,1,2...) for each data point.
+
+# -----------------------------
+# Step 6: Visualize the Clusters (Using PCA 2D projection)
+# -----------------------------
+# Reduce 4D data into 2D for visualization
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_scaled)
+
+# 🌈 Scatter plot to visualize clusters in 2D
+plt.figure(figsize=(8,6))
+sns.scatterplot(x=X_pca[:,0], y=X_pca[:,1], hue=y_kmeans, palette='viridis', s=60)
+
+# Mark cluster centroids (red 'X')
+plt.scatter(
+    pca.transform(kmeans.cluster_centers_)[:,0],
+    pca.transform(kmeans.cluster_centers_)[:,1],
+    s=200, c='red', marker='X', label='Centroids'
+)
+plt.title("K-Means Clustering (Visualized in 2D PCA Space)")
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.legend()
+plt.show()
+
+# 🧠 This plot shows how data points are grouped into 3 clusters by K-Means.
+# The red 'X' marks are the cluster centers in the PCA-transformed 2D space.
+
+# 💡 VIVA QUESTIONS:
+# Q10. Why is PCA used here?
+# A10. To reduce high-dimensional data (4D) to 2D for easier visualization while retaining variance.
+# Q11. Does PCA affect the clustering result?
+# A11. No, it’s only for visualization — K-Means was applied on full-dimensional data.
+
+# -----------------------------
+# Step 7: Compare with Actual Labels
+# -----------------------------
+plt.figure(figsize=(8,6))
+sns.scatterplot(x=X_pca[:,0], y=X_pca[:,1], hue=df['Species'], palette='coolwarm', s=60)
+plt.title("Actual Iris Species in 2D PCA Projection")
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.show()
+
+# 📊 This graph shows the real species clusters.
+# By comparing with the previous K-Means visualization,
+# we can see how closely unsupervised clustering matches true labels.
+
+# 💡 VIVA QUESTIONS:
+# Q12. What is the difference between clustering and classification?
+# A12. Clustering is unsupervised (no labels used), classification is supervised (uses labeled data).
+# Q13. How accurate is K-Means on Iris data approximately?
+# A13. Around 90% — it roughly separates Setosa perfectly, but overlaps Versicolor & Virginica slightly.
+
+# -----------------------------
+# Step 8: Summary
+# -----------------------------
+print("✅ SUMMARY:")
+print("• K-Means applied on standardized Iris data.")
+print("• Elbow method suggested k=3 as optimal (matches 3 Iris species).")
+print("• PCA used to visualize 4D data in 2D.")
+print("• Red 'X' marks represent cluster centroids in reduced space.")
+print("• Clusters roughly align with actual species, showing good performance.\n")
+
+# 💡 FINAL VIVA QUESTIONS:
+# Q14. What are limitations of K-Means?
+# A14. 
+#   - Assumes spherical clusters (fails with irregular shapes)
+#   - Sensitive to outliers
+#   - Requires specifying K manually
+#   - Affected by centroid initialization
+# Q15. What are possible alternatives to K-Means?
+# A15. Hierarchical clustering, DBSCAN, Gaussian Mixture Models (GMM).
+
+# ================================================================
+# 🎯 END OF CODE
+# ================================================================

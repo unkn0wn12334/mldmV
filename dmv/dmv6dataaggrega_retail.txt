@@ -1,0 +1,190 @@
+# ------------------------------------------------------
+# 📘 Import Required Libraries
+# ------------------------------------------------------
+import pandas as pd                # For data manipulation and analysis
+import matplotlib.pyplot as plt    # For data visualization (plots, charts)
+import seaborn as sns              # For advanced and attractive visualizations
+
+# ------------------------------------------------------
+# 🧾 Step 1: Load Dataset
+# ------------------------------------------------------
+# Load the CSV dataset into a pandas DataFrame
+df = pd.read_csv("/content/Retail_Sales_Data.csv")
+
+# Display first few rows to get an overview of data structure
+print("🔹 First 5 Rows of the Dataset:")
+print(df.head())
+
+# ------------------------------------------------------
+# 🔍 Step 2: Explore Dataset
+# ------------------------------------------------------
+# Display dataset info like data types, non-null counts, and memory usage
+print("\n🔹 Dataset Info:")
+print(df.info())
+
+# Summary statistics (mean, std, min, max, etc.) for numerical columns
+print("\n🔹 Summary Statistics:")
+print(df.describe())
+
+# Check for missing values in each column
+print("\n🔹 Missing Values:")
+print(df.isnull().sum())
+
+# ------------------------------------------------------
+# 🧹 Step 3: Data Cleaning
+# ------------------------------------------------------
+# Drop rows that contain missing values (only if they are few)
+df = df.dropna()
+
+# Convert Transaction_Date to datetime format for time-based analysis
+df['Transaction_Date'] = pd.to_datetime(df['Transaction_Date'], errors='coerce')
+
+# Check dataset again after cleaning
+print("\n✅ Cleaned Data Info:")
+print(df.info())
+
+# ------------------------------------------------------
+# 📊 Step 4: Identify Important Variables
+# ------------------------------------------------------
+# Display unique values in Region and Product_Category columns
+print("\n🔹 Unique Regions:", df['Region'].unique())
+print("🔹 Unique Product Categories:", df['Product_Category'].unique())
+
+# ------------------------------------------------------
+# 💰 Step 5: Group Sales by Region
+# ------------------------------------------------------
+# Aggregate total sales per region
+region_sales = df.groupby('Region')['Sales_Amount'].sum().reset_index().sort_values(by='Sales_Amount', ascending=False)
+
+# Display total sales by each region
+print("\n🏆 Total Sales by Region:")
+print(region_sales)
+
+# ------------------------------------------------------
+# 📊 Step 6: Visualize Sales by Region - Bar Plot
+# ------------------------------------------------------
+# Create a bar plot to show total sales in each region
+plt.figure(figsize=(8,5))
+sns.barplot(x='Region', y='Sales_Amount', data=region_sales, palette='viridis')
+plt.title("💰 Total Sales Amount by Region")
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+# 📝 This bar plot helps identify which regions generate the most revenue.
+
+# ------------------------------------------------------
+# 🥧 Step 7: Pie Chart for Sales Distribution by Region
+# ------------------------------------------------------
+# Create a pie chart showing percentage share of each region’s sales
+plt.figure(figsize=(7,7))
+plt.pie(region_sales['Sales_Amount'], labels=region_sales['Region'], autopct='%1.1f%%', startangle=140)
+plt.title("🥧 Sales Distribution by Region")
+plt.tight_layout()
+plt.show()
+# 📝 The pie chart shows how total sales are distributed among regions.
+
+# ------------------------------------------------------
+# 🏆 Step 8: Identify Top-Performing Regions
+# ------------------------------------------------------
+# Find the top 3 regions with highest sales
+top_regions = region_sales.sort_values(by='Sales_Amount', ascending=False).head(3)
+print("\n🏅 Top Performing Regions:")
+print(top_regions)
+# 📝 These are the regions contributing the most to company revenue.
+
+# ------------------------------------------------------
+# 📦 Step 9: Group Sales by Region and Product Category
+# ------------------------------------------------------
+# Calculate total sales for each Region–Product_Category combination
+region_category_sales = df.groupby(['Region', 'Product_Category'])['Sales_Amount'].sum().reset_index()
+print("\n📊 Total Sales by Region and Product Category:")
+print(region_category_sales.head())
+
+# ------------------------------------------------------
+# 📊 Step 10: Visualize Region vs Product Category - Grouped Bar Plot
+# ------------------------------------------------------
+# Create grouped bar plot for comparing product categories across regions
+plt.figure(figsize=(10,6))
+sns.barplot(x='Region', y='Sales_Amount', hue='Product_Category', data=region_category_sales)
+plt.title("📦 Total Sales by Region and Product Category")
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.legend(title="Product Category")
+plt.tight_layout()
+plt.show()
+# 📝 This shows which product categories perform best in which region.
+
+# ------------------------------------------------------
+# 📊 Step 11: Visualize as Stacked Bar Plot
+# ------------------------------------------------------
+# Pivot data for stacked bar visualization
+pivot_data = region_category_sales.pivot(index='Region', columns='Product_Category', values='Sales_Amount').fillna(0)
+
+# Create a stacked bar chart
+pivot_data.plot(kind='bar', stacked=True, figsize=(10,6), colormap='plasma')
+plt.title("📊 Stacked Bar Plot: Region-wise Product Category Sales")
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.legend(title="Product Category")
+plt.tight_layout()
+plt.show()
+# 📝 The stacked bar chart shows contribution of each category to total regional sales.
+
+# ------------------------------------------------------
+# 📈 Step 12: Optional - Trend Over Time
+# ------------------------------------------------------
+# Group total sales by transaction date
+daily_sales = df.groupby('Transaction_Date')['Sales_Amount'].sum().reset_index()
+
+# Plot daily sales trend
+plt.figure(figsize=(10,5))
+plt.plot(daily_sales['Transaction_Date'], daily_sales['Sales_Amount'], color='teal')
+plt.title("📅 Daily Sales Trend Over Time")
+plt.xlabel("Date")
+plt.ylabel("Total Sales Amount")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+# 📝 This line chart helps identify sales trends, patterns, and peak days.
+
+# ------------------------------------------------------
+# ✅ End of Program
+# ------------------------------------------------------
+
+# ------------------------------------------------------
+# 🎓 Viva Questions (with Answers)
+# ------------------------------------------------------
+
+# Q1. What is the purpose of this analysis?
+# Ans: To analyze and visualize the sales performance by region and product category to find top-performing areas.
+
+# Q2. Why do we use groupby() in pandas?
+# Ans: The groupby() function is used to aggregate data based on one or more columns (e.g., Region or Category).
+
+# Q3. What is the role of pivot() here?
+# Ans: The pivot() function reshapes data for easier visualization (used for stacked bar plots).
+
+# Q4. Why convert Transaction_Date to datetime?
+# Ans: Converting ensures proper time-based operations and plotting (like monthly or daily sales trends).
+
+# Q5. What kind of visualization helps identify top regions?
+# Ans: Bar plots and pie charts are most effective for comparing total sales among regions.
+
+# Q6. What is the difference between grouped and stacked bar charts?
+# Ans: 
+# - Grouped Bar Chart: Bars are placed side-by-side for comparison.
+# - Stacked Bar Chart: Bars are stacked to show the contribution of sub-categories to the total.
+
+# Q7. Which library is better for data visualization and why?
+# Ans: Seaborn, as it provides visually appealing and easy-to-read statistical graphics.
+
+# Q8. What preprocessing steps were done?
+# Ans: Handling missing values, converting date formats, and verifying data types.
+
+# Q9. How do you find the top-performing region programmatically?
+# Ans: By sorting the aggregated sales using sort_values() and selecting top records with head().
+
+# Q10. How does data visualization help decision-making?
+# Ans: It makes complex data understandable, revealing insights like sales performance trends and profitable regions.

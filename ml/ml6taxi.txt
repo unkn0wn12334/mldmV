@@ -1,0 +1,274 @@
+# ===============================================================
+# 🚕 TAXI PROBLEM USING Q-LEARNING (CUSTOM ENVIRONMENT)
+# ===============================================================
+# AIM:
+# To implement a simple taxi agent that learns (through reinforcement learning)
+# to pick up a passenger at one location and drop them at another.
+# This is a simplified grid-world version of OpenAI’s Taxi-v3.
+# ===============================================================
+
+# -----------------------------
+# Step 1: Import Required Libraries
+# -----------------------------
+import numpy as np               # For numerical operations & Q-table
+import random                    # For random actions (exploration)
+import matplotlib.pyplot as plt   # For visualizing the taxi path
+import seaborn as sns             # For heatmap-style visualization
+
+# -----------------------------
+# Step 2: Define Environment Setup
+# -----------------------------
+grid_size = 5                    # 5x5 grid world
+pickup_location = (0, 0)         # Passenger’s location
+dropoff_location = (4, 4)        # Destination location
+
+# Define possible actions
+# 0 = move up, 1 = move down, 2 = move left, 3 = move right,
+# 4 = pick up passenger, 5 = drop off passenger
+actions = [0, 1, 2, 3, 4, 5]
+
+# -----------------------------
+# Step 3: Initialize Q-Table
+# -----------------------------
+# Q-table stores expected reward for each state-action pair.
+# State is represented as (x, y, has_passenger)
+# - x: taxi’s row position (0–4)
+# - y: taxi’s column position (0–4)
+# - has_passenger: 0 (no passenger), 1 (passenger onboard)
+# So Q-table shape = [5 x 5 x 2 x 6]
+Q = np.zeros((grid_size, grid_size, 2, len(actions)))
+
+# -----------------------------
+# Step 4: Set Hyperparameters
+# -----------------------------
+alpha = 0.7        # Learning rate — how fast new information replaces old
+gamma = 0.9        # Discount factor — how much future rewards matter
+epsilon = 0.1      # Exploration rate — chance of random action
+episodes = 4000    # Total training iterations
+
+# -----------------------------
+# Step 5: Define Environment Step Function
+# -----------------------------
+# This function takes (state, action) and returns:
+#   → next_state
+#   → reward for that step
+#   → done flag (True if episode ends)
+def step(state, action):
+    x, y, has_passenger = state
+    reward = -1  # Small negative reward for every step (encourages faster completion)
+
+    # Movement logic within grid boundaries
+    if action == 0 and x > 0: 
+        x -= 1  # move up
+    elif action == 1 and x < grid_size - 1: 
+        x += 1  # move down
+    elif action == 2 and y > 0: 
+        y -= 1  # move left
+    elif action == 3 and y < grid_size - 1: 
+        y += 1  # move right
+
+    # Pickup action
+    elif action == 4:
+        # If taxi is at passenger’s location and hasn’t picked up yet
+        if (x, y) == pickup_location and has_passenger == 0:
+            has_passenger = 1
+            reward = 10  # Positive reward for successful pickup
+
+    # Dropoff action
+    elif action == 5:
+        # If taxi is at destination and has passenger onboard
+        if (x, y) == dropoff_location and has_passenger == 1:
+            has_passenger = 0
+            reward = 20  # Big reward for successful drop-off
+            return (x, y, has_passenger), reward, True  # Done (episode complete)
+
+    # Return updated state, reward, and done flag
+    return (x, y, has_passenger), reward, False
+
+# -----------------------------
+# Step 6: Training Loop (Q-Learning Algorithm)
+# -----------------------------
+for ep in range(episodes):
+    # Start each episode at a random position without a passenger
+    state = (random.randint(0, 4), random.randint(0, 4), 0)
+    done = False
+
+    while not done:
+        # --- Step 1: Choose Action (ε-greedy policy)
+        # With probability ε → random (exploration)
+        # With probability 1-ε → best known action (exploitation)
+        if random.uniform(0, 1) < epsilon:
+            action = random.choice(actions)
+        else:
+            action = np.argmax(Q[state])
+
+        # --- Step 2: Take Action & Observe Outcome
+        next_state, reward, done = step(state, action)
+
+        # --- Step 3: Update Q-value using Q-Learning formula
+        # Q(s,a) ← Q(s,a) + α * [reward + γ * max(Q(s',·)) − Q(s,a)]
+        Q[state][action] += alpha * (reward + gamma * np.max(Q[next_state]) - Q[state][action])
+
+        # --- Step 4: Move to Next State
+        state = next_state
+
+print("\n✅ Training complete!\n")
+
+# -----------------------------
+# Step 7: Testing the Trained Agent
+# -----------------------------
+# Now we’ll simulate the taxi starting from (0,0) and observe its path.
+
+state = (0, 0, 0)     # start at top-left corner without passenger
+done = False
+path = [state]        # to record movement across grid
+step_count = 0
+
+print("🚕 --- TEST RUN ---")
+while not done and step_count < 50:   # limit steps to prevent infinite loops
+    action = np.argmax(Q[state])      # always pick best action (no exploration now)
+    next_state, reward, done = step(state, action)
+
+    print(f"Step {step_count}: State={state}, Action={action}, Reward={reward}")
+
+    path.append(next_state)
+    state = next_state
+    step_count += 1
+
+print("\n🏁 Episode finished in", step_count, "steps.\n")
+
+# -----------------------------
+# Step 8: Visualization of Taxi Path
+# -----------------------------
+# Create a 2D grid of zeros (same size as environment)
+grid = np.zeros((grid_size, grid_size))
+
+# Count how many times each cell was visited during the test run
+for (x, y, _) in path:
+    grid[x, y] += 1
+
+# Plot grid as heatmap: brighter cells = visited more often
+plt.figure(figsize=(6, 6))
+sns.heatmap(grid, annot=True, fmt=".0f", cmap="YlGnBu", linewidths=0.5, cbar=False)
+
+# Mark pickup & dropoff points for clarity
+plt.text(pickup_location[1]+0.5, pickup_location[0]+0.5, 'P',
+         ha='center', va='center', color='red', fontsize=14, fontweight='bold')
+plt.text(dropoff_location[1]+0.5, dropoff_location[0]+0.5, 'D',
+         ha='center', va='center', color='green', fontsize=14, fontweight='bold')
+
+plt.title("Taxi Path (Visits per Cell)\nP = Pickup | D = Drop-off", fontsize=12)
+plt.gca().invert_yaxis()   # Invert Y-axis to match matrix orientation with grid
+plt.show()
+
+# ===============================================================
+# OUTPUT:
+# - Console prints each step taken during test run (state, action, reward)
+# - Heatmap shows which cells the taxi visited most often
+# - P marks the pickup location and D marks the dropoff
+# ===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The taxi lives in a 5x5 grid world.
+
+Each cell = one position (state coordinate).
+
+The agent has two possible internal states:
+
+No passenger onboard (has_passenger = 0)
+
+Passenger onboard (has_passenger = 1)
+
+Goal: Learn the shortest path from pickup to dropoff via experience.
+
+It learns through trial and error:
+
+Small negative reward (-1) for each step (to discourage wandering)
+
++10 reward for picking up passenger
+
++20 reward for dropping off at correct destination
+
+Future rewards are discounted by gamma = 0.9
+
+Q-table meaning:
+Each Q-value tells the agent how good it is to take a specific action from a specific state.
+As episodes progress, the Q-values converge toward optimal decisions.
+
+🧮 Q-Learning Update Rule
+Q(s, a) ← Q(s, a) + α [r + γ max(Q(s', a')) - Q(s, a)]
+
+s: current state
+
+a: chosen action
+
+r: immediate reward
+
+s': next state
+
+α (alpha): learning rate
+
+γ (gamma): discount factor
+
+This means:
+“New Q-value = Old Q + fraction of (Target - Old Q)”
+
+🧭 What the Heatmap Represents
+
+Each number shows how many times the taxi visited a cell during the test run.
+
+Brighter color → visited more often.
+
+The path usually goes:
+
+P (0,0) → moves right/down → reaches (4,4) D
+
+
+Once Q-values converge, the agent learns the optimal shortest path.
+
+🧩 Possible Viva Questions for This Code
+
+What is the purpose of the Q-table?
+→ It stores the expected reward for each state-action pair. The agent uses it to decide the best move.
+
+What is the role of alpha and gamma?
+→ alpha controls learning speed; gamma controls future reward importance.
+
+Why is there a small negative reward (-1)?
+→ To motivate the taxi to reach the goal quickly instead of wandering indefinitely.
+
+What happens if epsilon = 0?
+→ The agent will always exploit (never explore), and may get stuck with suboptimal behavior.
+
+Why do we decrease exploration over time in Q-learning (usually)?
+→ So that after enough learning, the agent focuses on exploiting the learned optimal path.
+
+What are the terminal conditions in this environment?
+→ When the taxi successfully drops the passenger at the destination.
+
+What does the heatmap show?
+→ The frequency of visits per cell — visualizing the path efficiency of the trained taxi.
+
+What if we increase grid_size to 10x10?
+→ The Q-table grows exponentially (more states), and training will take longer.
+
+What is the reward function’s importance in reinforcement learning?
+→ It guides the agent toward desirable behavior — defines what’s “good” or “bad.”
+
+What’s the difference between exploration and exploitation?
+→ Exploration tries new actions to discover better options; exploitation uses the best-known action so far.
